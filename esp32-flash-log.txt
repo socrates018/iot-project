@@ -1,0 +1,92 @@
+﻿**********************
+Windows PowerShell transcript start
+Start time: 20250511203230
+Username: SOC\socra
+RunAs User: SOC\socra
+Configuration Name: 
+Machine: SOC (Microsoft Windows NT 10.0.26100.0)
+Host Application: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Users\socra\Downloads\esp32v2.ps1
+Process ID: 16928
+PSVersion: 5.1.26100.3624
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.3624
+BuildVersion: 10.0.26100.3624
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+Transcript started, output file is C:\Users\socra\Downloads\esp32-flash-log.txt
+
+=== ESP32 Programming Setup ===
+=== Version 2.0 - Real-Time Output ===
+=== Stage: Downloading CP210x Universal Driver ===
+=== Stage: Downloading CH341SER Driver ===
+=== Stage: Installing CP210x drivers ===
+=== Stage: Installing CH341SER driver ===
+=== Stage: Installation Verification ===
+CP210x Devices:
+
+CH341 Devices:
+=== Stage: Cleaning up temporary files ===
+=== Stage: Installing dependencies ===
+=== Stage: Installing esptool ===
+Requirement already satisfied: esptool in c:\users\socra\appdata\roaming\python\python311\site-packages (4.8.1)
+Requirement already satisfied: bitstring!=4.2.0,>=3.1.6 in c:\users\socra\appdata\roaming\python\python311\site-packages (from esptool) (4.3.1)
+Requirement already satisfied: cryptography>=2.1.4 in c:\users\socra\appdata\roaming\python\python311\site-packages (from esptool) (44.0.3)
+Requirement already satisfied: ecdsa>=0.16.0 in c:\users\socra\appdata\roaming\python\python311\site-packages (from esptool) (0.19.1)
+Requirement already satisfied: pyserial>=3.3 in c:\users\socra\appdata\roaming\python\python311\site-packages (from esptool) (3.5)
+Requirement already satisfied: reedsolo<1.8,>=1.5.3 in c:\users\socra\appdata\roaming\python\python311\site-packages (from esptool) (1.7.0)
+Requirement already satisfied: PyYAML>=5.1 in c:\users\socra\appdata\roaming\python\python311\site-packages (from esptool) (6.0.2)
+Requirement already satisfied: intelhex in c:\users\socra\appdata\roaming\python\python311\site-packages (from esptool) (2.3.0)
+Requirement already satisfied: bitarray<4.0,>=3.0.0 in c:\users\socra\appdata\roaming\python\python311\site-packages (from bitstring!=4.2.0,>=3.1.6->esptool)
+(3.4.0)
+Requirement already satisfied: cffi>=1.12 in c:\users\socra\appdata\roaming\python\python311\site-packages (from cryptography>=2.1.4->esptool) (1.17.1)
+Requirement already satisfied: pycparser in c:\users\socra\appdata\roaming\python\python311\site-packages (from cffi>=1.12->cryptography>=2.1.4->esptool) (2.2
+2)
+Requirement already satisfied: six>=1.9.0 in c:\users\socra\appdata\roaming\python\python311\site-packages (from ecdsa>=0.16.0->esptool) (1.17.0)
+=== Stage: Flashing ESP32-C3 ===
+=== Stage: Downloading latest ESP32-C3 firmware ===
+esptool.py v4.8.1
+Serial port COM5
+Connecting....
+Chip is ESP32-C3 (QFN32) (revision v0.4)
+Features: WiFi, BLE, Embedded Flash 4MB (XMC)
+Crystal is 40MHz
+MAC: 50:78:7d:41:e7:1c
+Uploading stub...
+Running stub...
+Stub running...
+Erasing flash (this may take a while)...
+Chip erase completed successfully in 17.2s
+Hard resetting via RTS pin...
+esptool.py v4.8.1
+Serial port COM5
+Connecting...
+Chip is ESP32-C3 (QFN32) (revision v0.4)
+Features: WiFi, BLE, Embedded Flash 4MB (XMC)
+Crystal is 40MHz
+MAC: 50:78:7d:41:e7:1c
+Uploading stub...
+Running stub...
+Stub running...
+Changing baud rate to 460800
+Changed.
+Configuring flash size...
+Flash will be erased from 0x00000000 to 0x001c0fff...
+Compressed 1835856 bytes to 1115756...
+Wrote 1835856 bytes (1115756 compressed) at 0x00000000 in 14.1 seconds (effective 1038.6 kbit/s)...
+Hash of data verified.
+
+Leaving...
+Hard resetting via RTS pin...
+Firmware flashing complete.
+
+Flash successful! Connect with:
+1. Serial terminal: python -m serial.tools.miniterm  115200
+
+First connection tip: Wait 5 seconds after plugging in before sending commands!
+**********************
+Windows PowerShell transcript end
+End time: 20250511203326
+**********************
