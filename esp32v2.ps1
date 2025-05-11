@@ -138,13 +138,18 @@ function Get-ESPPort {
     $ports = Get-PnpDevice -Class Ports -PresentOnly | 
         Where-Object { $_.FriendlyName -match 'CP210|CH340|USB Serial Device' }
     
-    if ($ports.Count -gt 1) {
-        Write-Host "Multiple COM ports detected:" -ForegroundColor Yellow
-        $ports | Format-Table FriendlyName, DeviceID
-        Read-Host "Press Enter to use first port (or Ctrl+C to abort)"
+    if ($ports.Count -eq 0) {
+        Write-Host "No ESP32-related COM ports detected. Please enter manually." -ForegroundColor Yellow
+        return (Read-Host "Enter COM port (e.g., COM3)")
     }
-    
-    $ports[0].DeviceID
+    # Always use the first detected port automatically
+    $deviceId = $ports[0].DeviceID
+    if ($deviceId -match "(COM\d+)") {
+        Write-Host "Auto-selected port: $($matches[1])" -ForegroundColor Green
+        return $matches[1]
+    }
+    Write-Host "Could not auto-detect COM port. Please enter manually." -ForegroundColor Yellow
+    return (Read-Host "Enter COM port (e.g., COM3)")
 }
 
 # Flash firmware
@@ -164,12 +169,17 @@ function Update-ESP32C3 {
         return
     }
 
-    # Ask for COM port
-    $comPort = Read-Host "Enter COM port (e.g., COM3)"
+    # Use Get-ESPPort to detect/select COM port
+    $global:comPort = Get-ESPPort
+
+    if (-not $global:comPort) {
+        Write-Host "No COM port selected. Exiting." -ForegroundColor Red
+        return
+    }
 
     # Flash the firmware
-    & $PythonPath -m esptool --chip esp32c3 --port $comPort erase_flash
-    & $PythonPath -m esptool --chip esp32c3 --port $comPort --baud 460800 write_flash -z 0x0 $firmwareBin
+    & $PythonPath -m esptool --chip esp32c3 --port $global:comPort erase_flash
+    & $PythonPath -m esptool --chip esp32c3 --port $global:comPort --baud 460800 write_flash -z 0x0 $firmwareBin
 
     Write-Host "Firmware flashing complete." -ForegroundColor Green
 }
