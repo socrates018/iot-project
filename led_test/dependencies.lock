@@ -1,0 +1,15 @@
+dependencies:
+  espressif/led_strip:
+    component_hash: null
+    source:
+      path: C:\Users\socra\Documents\PlatformIO\Projects\led_test\components\espressif__led_strip
+      type: local
+    version: 2.5.5
+  idf:
+    component_hash: null
+    source:
+      type: idf
+    version: 5.4.0
+manifest_hash: 0cc82fe97c79f63a55617dc752463e28b1d156eb67ca1df48f1a8c734555db17
+target: esp32c3
+version: 1.0.0
