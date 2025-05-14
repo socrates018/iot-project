@@ -4,6 +4,7 @@
 #include "freertos/task.h"
 #include "driver/i2c_master.h"
 #include "ens160.h"
+#include "aht20.h"
 
 // I2C configuration for driver_ng
 #define I2C_MASTER_SCL_IO           9
@@ -46,19 +47,54 @@ void app_main() {
         printf("ENS160: Initialization failed\n");
     }
 
+    // Print ENS160 part ID
+    uint16_t ens160_part_id = 0;
+    if (ens160_get_part_id_register(ens160_handle, &ens160_part_id) == ESP_OK) {
+        printf("ENS160: Part ID: 0x%04X\n", ens160_part_id);
+    } else {
+        printf("ENS160: Failed to read Part ID\n");
+    }
+
+    // --- AHT20 device setup ---
+    aht20_dev_handle_t aht20_handle = NULL;
+    i2c_aht20_config_t aht20_config = {
+        .i2c_config = {
+            .device_address = AHT20_ADDRESS_0,
+            .scl_speed_hz = I2C_MASTER_FREQ_HZ,
+        },
+        .i2c_timeout = 1000, // Timeout in milliseconds
+    };
+    if (aht20_new_sensor(i2c_bus_handle, &aht20_config, &aht20_handle) != ESP_OK) {
+        printf("AHT20: Initialization failed\n");
+    }
+
     while (1) {
         // Read ENS160 sensor
         ens160_air_quality_data_t air_data;
         if (ens160_get_measurement(ens160_handle, &air_data) == ESP_OK) {
-            // Print all requested data fields
-            printf("ENS160: CAQI: %d, TVOC: %u ppb, EtOH: %u ppb, eCO2: %u ppm\n",
+            // Get AQI description
+            ens160_aqi_uba_row_t aqi_def = ens160_aqi_index_to_definition(air_data.uba_aqi);
+            // Print all requested data fields with AQI description
+            printf("ENS160: CAQI: %d (%s), TVOC: %u ppb, eCO2: %u ppm\n",
                 air_data.uba_aqi,      // CAQI register (UBA AQI index)
+                aqi_def.rating,        // AQI description
                 air_data.tvoc,         // TVOC data
-                air_data.etoh,         // EtOH data
                 air_data.eco2          // eCO2 data
             );
         } else {
             printf("ENS160: Read error\n");
+        }
+
+        // Read AHT20 sensor
+        float temperature = 0.0f, humidity = 0.0f;
+        if (aht20_read_float(aht20_handle, &temperature, &humidity) == ESP_OK) {
+            printf("AHT20: Temperature: %.2f C, Humidity: %.2f %%\n", temperature, humidity);
+            // Set ENS160 compensation factors
+            if (ens160_set_compensation_factors(ens160_handle, temperature, humidity) != ESP_OK) {
+                printf("ENS160: Failed to set compensation factors\n");
+            }
+        } else {
+            printf("AHT20: Read error\n");
         }
 
         vTaskDelay(pdMS_TO_TICKS(2000));

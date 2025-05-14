@@ -1,12 +1,14 @@
 dependencies:
   cmake_utilities: 0.*
   idf: '>=4.3'
-description: I2C driver for AHT20 humidity and temperature sensor
-issues: https://github.com/espressif/esp-iot-solution/issues
-repository: git://github.com/espressif/esp-iot-solution.git
+description: New i2c_master device for AHT20 humidity and temperature sensor
+issues: https://github.com/Jack-InGitHub/esp-aht20/issues
+maintainers:
+- oikiou <oikiou@outlook.com>
+repository: git://github.com/Jack-InGitHub/esp-aht20.git
 repository_info:
-  commit_sha: c78fce9bce2c27006b0e16346416d169e856aca0
-  path: components/sensors/humiture/aht20
+  commit_sha: 371ae357c381ced49b7831a43308456be6196829
+  path: /
 targets:
 - esp32
 - esp32c2
@@ -15,5 +17,5 @@ targets:
 - esp32h2
 - esp32s2
 - esp32s3
-url: https://github.com/espressif/esp-iot-solution/tree/master/components/sensors/humiture/aht20
-version: 1.0.0
+url: https://github.com/Jack-InGitHub/esp-aht20
+version: 0.1.1

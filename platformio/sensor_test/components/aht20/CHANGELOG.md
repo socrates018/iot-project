@@ -1,10 +1,12 @@
 # ChangeLog
 
-## v1.0.0 (2024-08-09)
+## v0.1.0 - 2024-12-16
 
-* Added description of AHT30
+### Enhancements:
 
-## v0.1.0 - 2023-11-10
+* Some comment modifications.
+
+## v0.1.0 - 2024-12-15
 
 ### Enhancements:
 
