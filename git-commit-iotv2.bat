@@ -59,6 +59,13 @@ rmdir /s /q "build" 2>nul
 rmdir /s /q "__pycache__" 2>nul
 del /s /q *.bin *.elf *.hex *.exe *.o *.obj *.pyc 2>nul
 
+:: === COPY PlatformIO PROJECT FILES ===
+echo Copying PlatformIO project files...
+if not exist "%CLONE_DIR%\platformio" (
+    mkdir "%CLONE_DIR%\platformio"
+)
+robocopy "C:\Users\socra\Documents\PlatformIO\Projects" "%CLONE_DIR%\platformio" /E /NFL /NDL /NJH /NJS /NC /NS
+
 :: Initialize git lfs if available
 where git-lfs >nul 2>nul
 if %errorlevel%==0 (
