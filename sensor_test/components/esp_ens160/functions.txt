@@ -1,3 +1,0 @@
-ens160_aqi_uba_row_t ens160_aqi_index_to_definition(const ens160_aqi_uba_indexes_t index);
-esp_err_t ens160_set_compensation_factors(ens160_handle_t handle, const float temperature, const float humidity);
-esp_err_t ens160_get_part_id_register(ens160_handle_t handle, uint16_t *const reg);

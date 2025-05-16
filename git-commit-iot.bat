@@ -25,8 +25,7 @@ if errorlevel 1 (
 
 :: Copy files from local folder into clone, EXCLUDING build/binary folders
 echo Copying files from %LOCAL_SOURCE% (excluding .pio, build, binaries) ...
-robocopy "%LOCAL_SOURCE%" "%CLONE_DIR%" /E /XD .pio build __pycache__ /XF *.bin *.elf *.hex *.exe *.o *.obj *.pyc
-
+robocopy "%LOCAL_SOURCE%" "%CLONE_DIR%/platformio" /E /IS /IT /COPY:DAT /R:0 /W:0 /XD .pio build __pycache__ /XF *.bin *.elf *.hex *.exe *.o *.obj *.pyc
 :: Note:
 :: This script does NOT push the .git folder from your local source.
 :: Only the files copied into the fresh clone (%CLONE_DIR%) are staged and pushed.
