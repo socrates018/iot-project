@@ -1,5 +1,5 @@
 # IoT Environmental Monitoring System  
-**University Course Project | Embedded Systems & IoT Engineering**  
+**University Course "IoT" Project**  
 
 ---
 
