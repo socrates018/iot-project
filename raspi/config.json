@@ -1,0 +1,11 @@
+{
+    "hostname": "10.24.4.12", //raspberrypi.local
+    "username": "pi",
+    "password": "1234", //your_password
+    "commands": [
+        "cd ~/projects",
+        "git clone https://github.com/example/repository.git",
+        "ls -la",
+        "echo 'Installation complete!'"
+    ]
+}
