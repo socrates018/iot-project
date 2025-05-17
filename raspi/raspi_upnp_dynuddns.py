@@ -9,16 +9,17 @@ from pathlib import Path
 import urllib.request
 
 # Configuration
-PORT_PROTOCOLS = [(8080, 'UDP')]  # List of (port, protocol) tuples
+PORT_PROTOCOLS = [(8080, 'TCP'), (80, 'TCP'), (53, 'UDP')]
 DDNS_CONFIG = {
-    'enabled': True,        # Set to False to disable DDNS
-    'apikey': 'your_api_key',  # Dynu API key
-    'hostname': 'yourhost.dynu.com',  # Your Dynu hostname
-    'interval': 600         # Update every 10 minutes
+    'enabled': True,
+    'apikey': 'your_api_key',
+    'hostname': 'yourhost.dynu.com',
+    'interval': 600
 }
-INTERVAL = 1800             # 30 minutes between port renewals
+INTERVAL = 1800
 SERVICE_NAME = "auto_upnp_ddns_service"
 SCRIPT_PATH = Path(__file__).resolve()
+VENV_DIR = SCRIPT_PATH.parent / "upnp_venv"
 LOG_FILE = "/var/log/auto_upnp_service.log"
 
 def check_root():
@@ -27,11 +28,22 @@ def check_root():
         sys.exit(1)
 
 def install_dependencies():
-    print("🔧 Checking/installing dependencies...")
+    print("🔧 Setting up virtual environment and dependencies...")
     try:
+        # Install required system packages
         subprocess.run(["apt-get", "update"], check=True)
-        subprocess.run(["apt-get", "install", "-y", "python3-pip"], check=True)
-        subprocess.run(["pip3", "install", "miniupnpc"], check=True)
+        subprocess.run(["apt-get", "install", "-y", "python3-venv"], check=True)
+        
+        # Create virtual environment
+        subprocess.run([sys.executable, "-m", "venv", VENV_DIR], check=True)
+        
+        # Install packages in venv
+        subprocess.run([
+            VENV_DIR / "bin" / "pip",
+            "install",
+            "miniupnpc"
+        ], check=True)
+        
     except subprocess.CalledProcessError as e:
         print(f"❌ Dependency installation failed: {e}")
         sys.exit(1)
@@ -53,7 +65,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart={sys.executable} {SCRIPT_PATH}
+ExecStart={VENV_DIR}/bin/python {SCRIPT_PATH}
 Restart=always
 RestartSec=60
 StandardOutput=null
@@ -72,6 +84,9 @@ WantedBy=multi-user.target
         logging.error(f"Service file creation failed: {e}")
         print("❌ Failed to create service file!")
         sys.exit(1)
+
+# ... [rest of the functions remain unchanged from previous version] ...
+
 
 def enable_service():
     try:
@@ -169,6 +184,7 @@ def service_loop():
             last_ddns_update = current_time
         
         time.sleep(60)  # Check every minute
+
 
 def main():
     check_root()
