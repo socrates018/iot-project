@@ -1,4 +1,4 @@
-```markdown
+
 # IoT Environmental Monitoring System  
 **University Course "IoT" Project**  
 
@@ -43,7 +43,7 @@ A distributed IoT system for city-wide environmental monitoring, featuring:
 [ESP32-C3] → I²C → Sensor Data → WiFi → Mosquitto MQTT Broker → InfluxDB  
               │                                      │                  ▲  
               └───────── Neopixel (GPIO8) ───────────┘                  └── Grafana Dashboard  
-```  
+
 **Flow Explanation:**  
 1. Sensors transmit data via I²C to ESP32-C3 nodes.  
 2. ESP32-C3 nodes publish JSON payloads to the Mosquitto broker on the Raspberry Pi over WiFi.  
