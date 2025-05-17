@@ -9,7 +9,7 @@ from pathlib import Path
 import urllib.request
 
 # Configuration
-PORT_PROTOCOLS = [(8080, 'TCP'), (80, 'TCP'), (53, 'UDP')]  # List of (port, protocol) tuples
+PORT_PROTOCOLS = [(8080, 'UDP')]  # List of (port, protocol) tuples
 DDNS_CONFIG = {
     'enabled': True,        # Set to False to disable DDNS
     'apikey': 'your_api_key',  # Dynu API key
