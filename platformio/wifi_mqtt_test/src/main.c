@@ -172,9 +172,16 @@ static void print_public_ip(void) {
     esp_http_client_handle_t client = esp_http_client_init(&config);
     esp_err_t open_err = esp_http_client_open(client, 0);
     if (open_err == ESP_OK) {
-        int len = esp_http_client_read(client, public_ip, sizeof(public_ip) - 1);
-        if (len > 0) {
-            public_ip[len] = '\0';
+        int content_length = esp_http_client_fetch_headers(client);
+        int total_read = 0;
+        int read_len;
+        if (content_length > 0 && content_length < sizeof(public_ip)) {
+            read_len = esp_http_client_read(client, public_ip, content_length);
+        } else {
+            read_len = esp_http_client_read(client, public_ip, sizeof(public_ip) - 1);
+        }
+        if (read_len > 0) {
+            public_ip[read_len] = '\0';
             ESP_LOGI(TAG, "Public IP: %s", public_ip);
         } else {
             ESP_LOGI(TAG, "Online: Failed to read public IP");
