@@ -1,7 +1,7 @@
 {
-    "hostname": "team19", //raspberrypi.local
+    "hostname": "10.24.4.12", //raspberrypi.local
     "username": "pi",
-    "password": "team19(@#$", //your_password
+    "password": "1234", //your_password
     "commands": [
         "cd ~/projects",
         "git clone https://github.com/example/repository.git",
