@@ -4,7 +4,7 @@
     "password": "1234", //your_password
     "commands": [
         "cd ~/projects",
-        "git clone https://github.com/example/repository.git",
+        "git clone https://gitlab.com/Panos2069/iot_lab",
         "ls -la",
         "echo 'Installation complete!'"
     ]
