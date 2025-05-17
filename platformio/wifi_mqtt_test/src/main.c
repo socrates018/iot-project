@@ -33,6 +33,10 @@
 #define MQTT_RETAIN 0
 #define PUBLISH_INTERVAL_MS 5000
 
+// Add MQTT username and password from .env
+#define MQTT_USERNAME "team19"
+#define MQTT_PASSWORD "team19(@#$"
+
 // Event group for WiFi connection
 static EventGroupHandle_t s_wifi_event_group;
 #define WIFI_CONNECTED_BIT BIT0
@@ -145,6 +149,8 @@ static void mqtt_app_start(void) {
     esp_mqtt_client_config_t mqtt_cfg = {
         .broker.address.uri = MQTT_BROKER_URI,
         .broker.address.port = MQTT_BROKER_PORT,
+        .credentials.username = MQTT_USERNAME,
+        .credentials.authentication.password = MQTT_PASSWORD,
     };
     mqtt_client = esp_mqtt_client_init(&mqtt_cfg);
     esp_mqtt_client_register_event(mqtt_client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
@@ -173,7 +179,6 @@ static void print_public_ip(void) {
     esp_err_t open_err = esp_http_client_open(client, 0);
     if (open_err == ESP_OK) {
         int content_length = esp_http_client_fetch_headers(client);
-        int total_read = 0;
         int read_len;
         if (content_length > 0 && content_length < sizeof(public_ip)) {
             read_len = esp_http_client_read(client, public_ip, content_length);
