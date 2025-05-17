@@ -1,11 +1,7 @@
 #!/usr/bin/env python3
 import subprocess
-import os
 import sys
-from shutil import copy2
-
-WPA_SUPPLICANT_CONF = "/etc/wpa_supplicant/wpa_supplicant.conf"
-BACKUP_CONF = "/etc/wpa_supplicant/wpa_supplicant.conf.bak"
+import os
 
 def check_sudo():
     """Ensure script runs with sudo."""
@@ -13,94 +9,64 @@ def check_sudo():
         print("Error: This script must be run with sudo.")
         sys.exit(1)
 
-def backup_config():
-    """Backup the original config file."""
+def check_nmcli():
+    """Check if nmcli is available."""
     try:
-        copy2(WPA_SUPPLICANT_CONF, BACKUP_CONF)
-        print(f"Backup created at {BACKUP_CONF}")
-    except Exception as e:
-        print(f"Backup failed: {e}")
+        subprocess.run(["nmcli", "--version"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+    except FileNotFoundError:
+        print("Error: nmcli (NetworkManager) is not installed.")
+        print("Install it with: sudo apt install network-manager")
         sys.exit(1)
 
 def list_networks():
-    """List all saved Wi-Fi networks."""
+    """List all saved Wi-Fi connections."""
     try:
-        with open(WPA_SUPPLICANT_CONF, 'r') as f:
-            content = f.read()
-            print("Saved Wi-Fi Networks:")
-            print("---------------------")
-            if "network=" not in content:
-                print("No networks configured.")
-            else:
-                print(content.split("network=")[1:])
-    except FileNotFoundError:
-        print(f"Error: {WPA_SUPPLICANT_CONF} not found.")
-        sys.exit(1)
+        result = subprocess.run(["nmcli", "connection", "show"], capture_output=True, text=True, check=True)
+        print("Saved Wi-Fi Networks:")
+        print("---------------------")
+        connections = [line.split()[0] for line in result.stdout.split('\n') if "wifi" in line]
+        if not connections:
+            print("No saved Wi-Fi networks.")
+        else:
+            for conn in connections:
+                print(conn)
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to list networks: {e.stderr}")
 
 def add_network(ssid, password):
-    """Add a new Wi-Fi network."""
-    backup_config()
-    network_config = f'\nnetwork={{\n    ssid="{ssid}"\n    psk="{password}"\n}}\n'
-
+    """Add a new Wi-Fi network using nmcli."""
     try:
-        with open(WPA_SUPPLICANT_CONF, 'a') as f:
-            f.write(network_config)
-        print(f"Successfully added network: {ssid}")
-        restart_wifi()
-    except Exception as e:
-        print(f"Failed to add network: {e}")
-        restore_backup()
+        subprocess.run(
+            ["nmcli", "device", "wifi", "connect", ssid, "password", password],
+            check=True,
+            capture_output=True,
+            text=True
+        )
+        print(f"Successfully added and connected to: {ssid}")
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to add network: {e.stderr}")
 
 def delete_network(ssid):
-    """Delete a Wi-Fi network by SSID."""
-    backup_config()
+    """Delete a saved Wi-Fi connection."""
     try:
-        with open(WPA_SUPPLICANT_CONF, 'r') as f:
-            lines = f.readlines()
-
-        new_lines = []
-        skip = False
-        for line in lines:
-            if f'ssid="{ssid}"' in line:
-                skip = True
-            elif skip and "}" in line:
-                skip = False
-                continue
-            if not skip:
-                new_lines.append(line)
-
-        with open(WPA_SUPPLICANT_CONF, 'w') as f:
-            f.writelines(new_lines)
-
-        print(f"Successfully deleted network: {ssid}")
-        restart_wifi()
-    except Exception as e:
-        print(f"Failed to delete network: {e}")
-        restore_backup()
-
-def restart_wifi():
-    """Restart Wi-Fi to apply changes."""
-    try:
-        subprocess.run(["sudo", "wpa_cli", "-i", "wlan0", "reconfigure"], check=True)
-        print("Wi-Fi reconfigured successfully.")
-    except subprocess.CalledProcessError:
-        print("Failed to restart Wi-Fi. Try rebooting.")
-
-def restore_backup():
-    """Restore from backup if something goes wrong."""
-    try:
-        copy2(BACKUP_CONF, WPA_SUPPLICANT_CONF)
-        print("Restored original config from backup.")
-    except Exception as e:
-        print(f"Restore failed: {e}")
+        subprocess.run(
+            ["nmcli", "connection", "delete", ssid],
+            check=True,
+            capture_output=True,
+            text=True
+        )
+        print(f"Successfully deleted: {ssid}")
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to delete network: {e.stderr}")
 
 def main():
     check_sudo()
+    check_nmcli()  # Ensure NetworkManager is installed
     if len(sys.argv) < 2:
         print("Usage:")
-        print(f"  {sys.argv[0]} list                           - List saved networks")
-        print(f"  {sys.argv[0]} add <SSID> <PASSWORD>          - Add a new network")
-        print(f"  {sys.argv[0]} delete <SSID>                  - Delete a network")
+        print(f"  {sys.argv[0]} list                     - List saved networks")
+        print(f"  {sys.argv[0]} add <SSID> <PASSWORD>    - Add a new network")
+        print(f"  {sys.argv[0]} delete <SSID>            - Delete a network")
         sys.exit(1)
 
     command = sys.argv[1].lower()
@@ -109,13 +75,13 @@ def main():
         list_networks()
     elif command == "add":
         if len(sys.argv) != 4:
-            print("Usage: sudo python3 wifi_manager.py add <SSID> <PASSWORD>")
+            print("Usage: sudo python3 nmcli_wifi_manager.py add <SSID> <PASSWORD>")
             sys.exit(1)
         ssid, password = sys.argv[2], sys.argv[3]
         add_network(ssid, password)
     elif command == "delete":
         if len(sys.argv) != 3:
-            print("Usage: sudo python3 wifi_manager.py delete <SSID>")
+            print("Usage: sudo python3 nmcli_wifi_manager.py delete <SSID>")
             sys.exit(1)
         ssid = sys.argv[2]
         delete_network(ssid)
