@@ -3,7 +3,7 @@
     "username": "pi",
     "password": "1234", //your_password
     "commands": [
-        "cd ~/projects",
+        "sudo rm -rf iot_lab"
         "git clone https://gitlab.com/Panos2069/iot_lab",
         "ls -la",
         "echo 'Installation complete!'"
