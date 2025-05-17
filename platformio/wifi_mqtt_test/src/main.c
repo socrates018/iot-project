@@ -12,24 +12,26 @@
 #include "esp_log.h"
 #include "nvs_flash.h"
 #include "mqtt_client.h"
+#include "lwip/inet.h"
+#include "freertos/semphr.h"
+#include "esp_http_client.h" // Moved here from app_main
 
 // WiFi configuration
 #define WIFI_SSID "1"
 #define WIFI_PASS "minecraft123"
 #define WIFI_AUTH_MODE WIFI_AUTH_WPA2_PSK
 #define WIFI_RSSI_THRESHOLD 0
-#define WIFI_MODE WIFI_MODE_STA
+#define WIFI_MODE WIFI_MODE_STA    
 
 // MQTT configuration
 // Public IP: 194.177.207.38, Private IP: 10.64.44.156
-#define MQTT_BROKER_URI "mqtt://10.64.44.156"
-// #define MQTT_PUBLISH_TOPIC "/test" // No longer needed, topics are constructed dynamically
+#define MQTT_BROKER_URI "mqtt://194.177.207.38"
+#define MQTT_BROKER_PORT 1883
 #define MY_TEAM "team19"
 #define MQTT_TOPIC_PREFIX "iot/" MY_TEAM
 #define MQTT_QOS 1
 #define MQTT_RETAIN 0
 #define PUBLISH_INTERVAL_MS 5000
-#define MQTT_PUBLIC_IP "194.177.207.38"
 
 // Event group for WiFi connection
 static EventGroupHandle_t s_wifi_event_group;
@@ -40,7 +42,6 @@ static const char *TAG = "WIFI_MQTT";
 static esp_mqtt_client_handle_t mqtt_client;
 static char mqtt_topic_temp[128];
 static char mqtt_topic_hum[128];
-static char hostname[64];
 
 // MQTT event string representations
 static const char* mqtt_event_to_str(int32_t event_id) {
@@ -143,16 +144,67 @@ static void wifi_init_sta(void) {
 static void mqtt_app_start(void) {
     esp_mqtt_client_config_t mqtt_cfg = {
         .broker.address.uri = MQTT_BROKER_URI,
+        .broker.address.port = MQTT_BROKER_PORT,
     };
     mqtt_client = esp_mqtt_client_init(&mqtt_cfg);
     esp_mqtt_client_register_event(mqtt_client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
     esp_mqtt_client_start(mqtt_client);
 }
 
-void app_main(void) {
+// Helper function to print local (private) IP
+static void print_local_ip(void) {
+    esp_netif_ip_info_t ip_info;
+    esp_netif_t *netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+    if (netif && esp_netif_get_ip_info(netif, &ip_info) == ESP_OK) {
+        ESP_LOGI(TAG, "Local IP: " IPSTR, IP2STR(&ip_info.ip));
+    } else {
+        ESP_LOGI(TAG, "Local IP: Not available");
+    }
+}
+
+// Helper function to print public IP
+static void print_public_ip(void) {
+    char public_ip[64] = "Unknown";
+    esp_http_client_config_t config = {
+        .url = "http://api.ipify.org",
+        .timeout_ms = 3000,
+    };
+    esp_http_client_handle_t client = esp_http_client_init(&config);
+    esp_err_t open_err = esp_http_client_open(client, 0);
+    if (open_err == ESP_OK) {
+        int len = esp_http_client_read(client, public_ip, sizeof(public_ip) - 1);
+        if (len > 0) {
+            public_ip[len] = '\0';
+            ESP_LOGI(TAG, "Public IP: %s", public_ip);
+        } else {
+            ESP_LOGI(TAG, "Online: Failed to read public IP");
+        }
+    } else {
+        ESP_LOGI(TAG, "No internet connection");
+    }
+    esp_http_client_cleanup(client);
+}
+
+// Print WiFi status: SSID and RSSI periodically
+static void wifi_status_task(void *pvParameters) {
+    while (1) {
+        wifi_ap_record_t ap_info;
+        if (esp_wifi_sta_get_ap_info(&ap_info) == ESP_OK) {
+            char ssid[33] = {0};
+            strncpy(ssid, (const char*)ap_info.ssid, sizeof(ssid) - 1);
+            ESP_LOGI(TAG, "WiFi Status: CONNECTED | SSID: %s | RSSI: %d", ssid, ap_info.rssi);
+        } else {
+            ESP_LOGI(TAG, "WiFi Status: NOT CONNECTED");
+        }
+        print_local_ip();
+        print_public_ip();
+        vTaskDelay(pdMS_TO_TICKS(10000)); // Print every 10 seconds
+    }
+}
+
+void app_main() {
     vTaskDelay(pdMS_TO_TICKS(500)); // Wait 500ms before any log prints
-    ESP_LOGI(TAG, "Public MQTT Broker IP: %s", MQTT_PUBLIC_IP);
-    ESP_LOGI(TAG, "ESP Public IP: %s", MQTT_PUBLIC_IP);
+    ESP_LOGI(TAG, "MQTT Broker URI: %s", MQTT_BROKER_URI);
     ESP_LOGI(TAG, "Starting app_main");
     ESP_ERROR_CHECK(nvs_flash_init());
     ESP_LOGI(TAG, "NVS flash initialized");
@@ -160,12 +212,13 @@ void app_main(void) {
     ESP_LOGI(TAG, "Random seed set");
     wifi_init_sta();
     ESP_LOGI(TAG, "WiFi initialized");
-    // Use MAC address for unique topic
+
+    // Start periodic WiFi status task
+    xTaskCreate(wifi_status_task, "wifi_status_task", 4096, NULL, 3, NULL);
+
     uint8_t mac[6];
     ESP_ERROR_CHECK(esp_wifi_get_mac(WIFI_IF_STA, mac));
     ESP_LOGI(TAG, "Device MAC: %02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-    snprintf(hostname, sizeof(hostname), "esp32_%02X%02X%02X", mac[3], mac[4], mac[5]);
-    ESP_LOGI(TAG, "Using hostname: %s", hostname);
     snprintf(mqtt_topic_temp, sizeof(mqtt_topic_temp), MQTT_TOPIC_PREFIX "/airTemperature");
     snprintf(mqtt_topic_hum, sizeof(mqtt_topic_hum), MQTT_TOPIC_PREFIX "/airHumidity");
     ESP_LOGI(TAG, "MQTT topics: %s, %s", mqtt_topic_temp, mqtt_topic_hum);
