@@ -104,7 +104,7 @@ def forward_ports(upnp):
         try:
             upnp.addportmapping(
                 port, protocol, upnp.lanaddr, port,
-                'Auto-UPnP-Service', '', 3600
+                'Auto-UPnP-Service', '', 3600  # Set lifetime to 1 hour (3600 seconds)
             )
             logging.info(f"Forwarded {port}/{protocol}")
         except Exception as e:
