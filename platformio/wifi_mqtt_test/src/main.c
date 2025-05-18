@@ -92,9 +92,10 @@ static void publish_random_measurements(void) {
 
 static void periodic_publish_task(void *pvParameters) {
     ESP_LOGI(TAG, "Starting periodic publish task");
+    //remove while 1 if possible
     while (1) {
         ESP_LOGI(TAG, "Publishing new measurements...");
-        publish_random_measurements();
+        publish_random_measurements(); //////
         ESP_LOGI(TAG, "Sleeping for %d ms", PUBLISH_INTERVAL_MS);
         vTaskDelay(pdMS_TO_TICKS(PUBLISH_INTERVAL_MS));
     }
