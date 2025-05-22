@@ -1,0 +1,21 @@
+dependencies:
+  esp_type_utils:
+    component_hash: null
+    source:
+      path: C:\Users\socra\Documents\PlatformIO\Projects\wifi_mqtt_test\components\esp_type_utils
+      type: local
+    version: 1.2.5
+  espressif/cmake_utilities:
+    component_hash: 351350613ceafba240b761b4ea991e0f231ac7a9f59a9ee901f751bddc0bb18f
+    source:
+      service_url: https://api.components.espressif.com/
+      type: service
+    version: 0.5.3
+  idf:
+    component_hash: null
+    source:
+      type: idf
+    version: 5.4.0
+manifest_hash: ae005bcab3d7a2a6ab009f182a92d59a58aea7d14d1add3bd6c3893cf33064e6
+target: esp32c3
+version: 1.0.0
