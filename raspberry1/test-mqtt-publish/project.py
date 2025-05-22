@@ -3,6 +3,8 @@ import random
 import socket
 import logging
 import paho.mqtt.client as mqtt
+from os import getenv
+from dotenv import load_dotenv
 
 LOGGING = "console"
 LOG_FILE = "stats.log"
@@ -11,6 +13,10 @@ PUBLISH_INTERVAL = 5
 
 MY_TEAM = "team19"
 
+# Load .env for password
+load_dotenv()
+MQTT_PASSWORD = getenv("MQTT_PASSWORD")
+
 # Use only public IPs
 broker_address = "194.177.207.38"
 broker_port = 1883
@@ -18,6 +24,7 @@ topic = f"iot/{MY_TEAM}"
 client_id = f"client_{random.randint(0, 1000)}"
 
 client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id)
+client.username_pw_set(MY_TEAM, MQTT_PASSWORD)
 client.connect(broker_address, broker_port)
 client.loop_start()
 
