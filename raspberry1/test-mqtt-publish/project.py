@@ -9,7 +9,7 @@ LOG_FILE = "stats.log"
 
 PUBLISH_INTERVAL = 5
 
-MY_TEAM = socket.gethostname()
+MY_TEAM = "team19"
 
 # Use only public IPs
 broker_address = "194.177.207.38"
