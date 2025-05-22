@@ -1,4 +1,6 @@
 #!/bin/bash
+# To activate the venv in your current shell, run: source venv.sh
+
 # Create virtual environment
 python3 -m venv venv
 

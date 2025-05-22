@@ -1,5 +1,6 @@
 #!/bin/bash
 # Clones the iot-project repo into ~/iot-project, replacing any existing directory
+# To run this script without chmod: bash git-clone-replace.sh
 
 set -e
 
