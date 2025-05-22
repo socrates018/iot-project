@@ -35,15 +35,23 @@ def get_measurements() -> tuple[float, float]:
     temperature = random.uniform(15.0, 30.0)
     humidity = random.uniform(30.0, 70.0)
 
-    client.publish(f"{topic}/airTemperature", f"{temperature:.2f}", qos=1)
-    client.publish(f"{topic}/airHumidity", f"{humidity:.2f}", qos=1)
+    temp_result = client.publish(f"{topic}/airTemperature", f"{temperature:.2f}", qos=1)
+    hum_result = client.publish(f"{topic}/airHumidity", f"{humidity:.2f}", qos=1)
+
+    # Check publish results
+    temp_success = temp_result.rc == mqtt.MQTT_ERR_SUCCESS
+    hum_success = hum_result.rc == mqtt.MQTT_ERR_SUCCESS
 
     if LOGGING == "console":
         print(f"Temperature: {temperature:.2f} °C")
         print(f"Humidity: {humidity:.2f} %")
+        print(f"Publish airTemperature: {'OK' if temp_success else 'FAILED'} (rc={temp_result.rc})")
+        print(f"Publish airHumidity: {'OK' if hum_success else 'FAILED'} (rc={hum_result.rc})")
     else:
         logging.info(f"Temperature: {temperature:.2f} °C")
         logging.info(f"Humidity: {humidity:.2f} %")
+        logging.info(f"Publish airTemperature: {'OK' if temp_success else 'FAILED'} (rc={temp_result.rc})")
+        logging.info(f"Publish airHumidity: {'OK' if hum_success else 'FAILED'} (rc={hum_result.rc})")
 
     return temperature, humidity
 
