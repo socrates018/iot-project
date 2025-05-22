@@ -2,22 +2,22 @@ import random
 import socket
 import requests
 import paho.mqtt.client as mqtt
-from os import getenv
-from dotenv import load_dotenv
 from requests.auth import HTTPBasicAuth
+import getpass
 
 # ---------- Configuration ----------
-INFLUXDB_URL = "http://194.177.207.38:8086"  # Public IP for InfluxDB
-MQTT_BROKER = "194.177.207.38"               # Public IP for MQTT Broker
+PRIVATE_IP = "10.64.44.156"
+PUBLIC_IP = "194.177.207.38"
+INFLUXDB_URL = f"http://{PUBLIC_IP}:8086"    # Internal IP for InfluxDB
+MQTT_BROKER = PUBLIC_IP                       # Internal IP for MQTT Broker
 MQTT_PORT = 1883
 #HOSTNAME = socket.gethostname()              # π.χ. "team19"
 HOSTNAME = "team19"              
 
 DB_NAME = "team19_db"
 
-# ---------- Load .env for password ----------
-load_dotenv()
-MQTT_PASSWORD = getenv("MQTT_PASSWORD")
+# ---------- Prompt for password ----------
+MQTT_PASSWORD = getpass.getpass("Enter MQTT password: ")
 
 # ---------- MQTT Setup ----------
 topic = f"iot/{HOSTNAME}/#"

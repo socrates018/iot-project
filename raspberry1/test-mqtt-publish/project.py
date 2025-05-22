@@ -3,8 +3,7 @@ import random
 import socket
 import logging
 import paho.mqtt.client as mqtt
-from os import getenv
-from dotenv import load_dotenv
+import getpass
 
 LOGGING = "console"
 LOG_FILE = "stats.log"
@@ -13,9 +12,8 @@ PUBLISH_INTERVAL = 5
 
 MY_TEAM = "team19"
 
-# Load .env for password
-load_dotenv()
-MQTT_PASSWORD = getenv("MQTT_PASSWORD")
+# Prompt for password instead of loading from .env
+MQTT_PASSWORD = getpass.getpass("Enter MQTT password: ")
 
 # Use only public IPs
 broker_address = "194.177.207.38"
