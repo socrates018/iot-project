@@ -6,8 +6,6 @@ from requests.auth import HTTPBasicAuth
 import getpass
 
 # ---------- Configuration ----------
-# ---------- Configuration ----------
-# ---------- Configuration ----------
 PRIVATE_IP = "10.64.44.156"
 PUBLIC_IP = "194.177.207.38"
 INFLUXDB_URL = f"http://{PUBLIC_IP}:8086"    # Internal IP for InfluxDB
