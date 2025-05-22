@@ -11,7 +11,7 @@ INFLUXDB_URL = "http://194.177.207.38:8086"  # Public IP for InfluxDB
 MQTT_BROKER = "194.177.207.38"               # Public IP for MQTT Broker
 MQTT_PORT = 1883
 #HOSTNAME = socket.gethostname()              # π.χ. "team19"
-HOSTNAME = team19              
+HOSTNAME = "team19"              
 
 DB_NAME = "team19_db"
 
