@@ -24,14 +24,10 @@
 // WiFi configuration
 #define WIFI_SSID "1"
 #define WIFI_PASS "minecraft123"
-#define WIFI_AUTH_MODE WIFI_AUTH_WPA2_PSK
-#define WIFI_RSSI_THRESHOLD 0
-#define WIFI_MODE WIFI_MODE_STA    
 
 // I2C configuration for driver_ng
 #define I2C_MASTER_SCL_IO           9
 #define I2C_MASTER_SDA_IO           7
-#define I2C_MASTER_PORT             0
 #define I2C_MASTER_FREQ_HZ          100000
 
 // LED configuration
@@ -47,7 +43,7 @@ static EventGroupHandle_t s_wifi_event_group;
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_FAIL_BIT      BIT1
 
-static const char *TAG = "WIFI_MQTT";
+static const char *TAG = "UDP_SENSOR";
 
 // WiFi event handler
 static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
@@ -95,8 +91,6 @@ static void wifi_init_sta(void) {
         .sta = {
             .ssid = WIFI_SSID,
             .password = WIFI_PASS,
-            .threshold.authmode = WIFI_AUTH_MODE,
-            .threshold.rssi = WIFI_RSSI_THRESHOLD,
         },
     };
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE));
@@ -125,39 +119,14 @@ esp_err_t i2c_master_bus_init_ng(i2c_master_bus_handle_t *bus_handle) {
     return i2c_new_master_bus(&bus_config, bus_handle);
 }
 
-void app_main() {
-    vTaskDelay(pdMS_TO_TICKS(500));
-    ESP_LOGI(TAG, "Starting app_main (UDP sensor sender)");
-    ESP_ERROR_CHECK(nvs_flash_init());
-    srand((unsigned)time(NULL));
-    wifi_init_sta();
-    ESP_LOGI(TAG, "WiFi initialized");
-
-    // --- LED strip initialization ---
-    led_strip_handle_t strip;
-    led_strip_config_t strip_config = {
-        .strip_gpio_num = NEOPIXEL_GPIO,
-        .max_leds = NUM_PIXELS,
-        .led_pixel_format = LED_PIXEL_FORMAT_GRB,
-        .led_model = LED_MODEL_WS2812,
-        .flags.invert_out = false,
-    };
-    led_strip_rmt_config_t rmt_config = {
-        .clk_src = RMT_CLK_SRC_DEFAULT,
-        .resolution_hz = 10 * 1000 * 1000, // 10MHz
-        .mem_block_symbols = 0,
-        .flags.with_dma = false,
-    };
-    led_strip_new_rmt_device(&strip_config, &rmt_config, &strip);
-    led_strip_clear(strip);
-    led_strip_refresh(strip);
-
+static void sensor_udp_task(void *pvParameters) {
+    led_strip_handle_t strip = (led_strip_handle_t)pvParameters;
+    // Re-initialize I2C and sensors in this task for safety
     i2c_master_bus_handle_t i2c_bus_handle = NULL;
     if (i2c_master_bus_init_ng(&i2c_bus_handle) != ESP_OK) {
         ESP_LOGE(TAG, "I2C bus init failed");
+        vTaskDelete(NULL);
     }
-
-    // --- ENS160 device setup (driver_ng) ---
     ens160_config_t ens160_config = {
         .i2c_address = I2C_ENS160_DEV_ADDR_HI,
         .i2c_clock_speed = I2C_ENS160_DEV_CLK_SPD,
@@ -170,23 +139,21 @@ void app_main() {
     ens160_handle_t ens160_handle = NULL;
     if (ens160_init(i2c_bus_handle, &ens160_config, &ens160_handle) != ESP_OK) {
         ESP_LOGE(TAG, "ENS160: Initialization failed");
+        vTaskDelete(NULL);
     }
-
-    // --- AHT20 device setup ---
     aht20_dev_handle_t aht20_handle = NULL;
     i2c_aht20_config_t aht20_config = {
         .i2c_config = {
             .device_address = AHT20_ADDRESS_0,
             .scl_speed_hz = I2C_MASTER_FREQ_HZ,
         },
-        .i2c_timeout = 1000, // Timeout in milliseconds
+        .i2c_timeout = 1000,
     };
     if (aht20_new_sensor(i2c_bus_handle, &aht20_config, &aht20_handle) != ESP_OK) {
         ESP_LOGE(TAG, "AHT20: Initialization failed");
+        vTaskDelete(NULL);
     }
-
-    while (1) {
-        // Read ENS160 sensor
+    for (;;) {
         ens160_air_quality_data_t air_data;
         uint8_t caqi = 0;
         if (ens160_get_measurement(ens160_handle, &air_data) == ESP_OK) {
@@ -197,22 +164,18 @@ void app_main() {
             ESP_LOGI(TAG, "ENS160: Read error");
             caqi = 0;
         }
-
-        // Set LED color according to CAQI
         uint8_t r = 0, g = 0, b = 0;
         switch (caqi) {
-            case 1: r = 0; g = 255; b = 0; break; // Good
-            case 2: r = 255; g = 255; b = 0; break; // Fair
-            case 3: r = 255; g = 165; b = 0; break; // Moderate
-            case 4: r = 128; g = 0; b = 128; break; // Poor
-            case 5: r = 255; g = 0; b = 0; break; // Very Poor
-            default: r = 0; g = 0; b = 255; break; // Unknown/error
+            case 1: r = 0; g = 255; b = 0; break;
+            case 2: r = 255; g = 255; b = 0; break;
+            case 3: r = 255; g = 165; b = 0; break;
+            case 4: r = 128; g = 0; b = 128; break;
+            case 5: r = 255; g = 0; b = 0; break;
+            default: r = 0; g = 0; b = 255; break;
         }
         led_strip_clear(strip);
         led_strip_set_pixel(strip, 0, r, g, b);
         led_strip_refresh(strip);
-
-        // Read AHT20 sensor
         float temperature = 0.0f, humidity = 0.0f;
         if (aht20_read_float(aht20_handle, &temperature, &humidity) == ESP_OK) {
             ESP_LOGI(TAG, "AHT20: Temperature: %.2f C, Humidity: %.2f %%", temperature, humidity);
@@ -222,15 +185,39 @@ void app_main() {
         } else {
             ESP_LOGI(TAG, "AHT20: Read error");
         }
-
-        // Prepare UDP payload
         char udp_payload[128];
         snprintf(udp_payload, sizeof(udp_payload),
             "temp=%.2f,hum=%.2f,caqi=%d,tvoc=%u,eco2=%u",
             temperature, humidity, air_data.uba_aqi, air_data.tvoc, air_data.eco2);
         udp_send_sensor_data(udp_payload);
         ESP_LOGI(TAG, "UDP sent: %s", udp_payload);
-
         vTaskDelay(pdMS_TO_TICKS(2000));
     }
+}
+
+void app_main() {
+    vTaskDelay(pdMS_TO_TICKS(500));
+    ESP_LOGI(TAG, "Starting app_main (UDP sensor sender)");
+    ESP_ERROR_CHECK(nvs_flash_init());
+    srand((unsigned)time(NULL));
+    wifi_init_sta();
+    ESP_LOGI(TAG, "WiFi initialized");
+    led_strip_handle_t strip;
+    led_strip_config_t strip_config = {
+        .strip_gpio_num = NEOPIXEL_GPIO,
+        .max_leds = NUM_PIXELS,
+        .led_pixel_format = LED_PIXEL_FORMAT_GRB,
+        .led_model = LED_MODEL_WS2812,
+        .flags.invert_out = false,
+    };
+    led_strip_rmt_config_t rmt_config = {
+        .clk_src = RMT_CLK_SRC_DEFAULT,
+        .resolution_hz = 10 * 1000 * 1000,
+        .mem_block_symbols = 0,
+        .flags.with_dma = false,
+    };
+    led_strip_new_rmt_device(&strip_config, &rmt_config, &strip);
+    led_strip_clear(strip);
+    led_strip_refresh(strip);
+    xTaskCreate(sensor_udp_task, "sensor_udp_task", 4096, (void*)strip, 5, NULL);
 }
