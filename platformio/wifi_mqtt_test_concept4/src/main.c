@@ -20,6 +20,8 @@
 #include "led_strip.h"
 #include "driver/gpio.h"
 #include "lwip/sockets.h"
+#include "esp_netif.h"
+#include <netdb.h> // For gethostbyname
 
 // WiFi configuration
 #define WIFI_SSID "1"
@@ -29,14 +31,15 @@
 #define I2C_MASTER_SCL_IO           9
 #define I2C_MASTER_SDA_IO           7
 #define I2C_MASTER_FREQ_HZ          100000
+#define I2C_MASTER_PORT             0 // Added missing definition
 
 // LED configuration
 #define NEOPIXEL_GPIO 8
 #define NUM_PIXELS    1
 
 // UDP configuration
-#define UDP_TARGET_IP   "192.168.1.100" // Change to your receiver IP
-#define UDP_TARGET_PORT 12345
+#define UDP_TARGET_HOST   "team19pi.ddns.net" // Changed from IP to hostname
+#define UDP_TARGET_PORT   8080 // Changed port to 8080
 
 // Event group for WiFi connection
 static EventGroupHandle_t s_wifi_event_group;
@@ -59,13 +62,18 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 
 // UDP send function
 static void udp_send_sensor_data(const char *payload) {
+    struct sockaddr_in dest_addr = {0};
+    struct hostent *he = gethostbyname(UDP_TARGET_HOST);
+    if (!he || he->h_addr_list == NULL || he->h_addr_list[0] == NULL) {
+        ESP_LOGE(TAG, "DNS lookup failed for %s", UDP_TARGET_HOST);
+        return;
+    }
     int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
     if (sock < 0) {
         ESP_LOGE(TAG, "Unable to create UDP socket");
         return;
     }
-    struct sockaddr_in dest_addr = {0};
-    dest_addr.sin_addr.s_addr = inet_addr(UDP_TARGET_IP);
+    dest_addr.sin_addr.s_addr = ((struct in_addr *)he->h_addr_list[0])->s_addr;
     dest_addr.sin_family = AF_INET;
     dest_addr.sin_port = htons(UDP_TARGET_PORT);
     sendto(sock, payload, strlen(payload), 0, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
@@ -93,7 +101,7 @@ static void wifi_init_sta(void) {
             .password = WIFI_PASS,
         },
     };
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE));
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA)); // Fixed mode
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
 
@@ -153,6 +161,11 @@ static void sensor_udp_task(void *pvParameters) {
         ESP_LOGE(TAG, "AHT20: Initialization failed");
         vTaskDelete(NULL);
     }
+    // Get MAC address
+    uint8_t mac[6];
+    esp_read_mac(mac, ESP_MAC_WIFI_STA);
+    char mac_id[3];
+    snprintf(mac_id, sizeof(mac_id), "%02X", mac[5]);
     for (;;) {
         ens160_air_quality_data_t air_data;
         uint8_t caqi = 0;
@@ -185,10 +198,15 @@ static void sensor_udp_task(void *pvParameters) {
         } else {
             ESP_LOGI(TAG, "AHT20: Read error");
         }
-        char udp_payload[128];
+        /*
+        UDP packet format before sending:
+        temp=<temperature>,hum=<humidity>,id=<last_mac_byte>
+        Example: temp=23.45,hum=56.78,id=AB
+        */
+        char udp_payload[64];
         snprintf(udp_payload, sizeof(udp_payload),
-            "temp=%.2f,hum=%.2f,caqi=%d,tvoc=%u,eco2=%u",
-            temperature, humidity, air_data.uba_aqi, air_data.tvoc, air_data.eco2);
+            "temp=%.2f,hum=%.2f,id=%s",
+            temperature, humidity, mac_id);
         udp_send_sensor_data(udp_payload);
         ESP_LOGI(TAG, "UDP sent: %s", udp_payload);
         vTaskDelay(pdMS_TO_TICKS(2000));

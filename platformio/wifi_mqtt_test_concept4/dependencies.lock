@@ -2,7 +2,7 @@ dependencies:
   esp_type_utils:
     component_hash: null
     source:
-      path: C:\Users\socra\Documents\PlatformIO\Projects\wifi_mqtt_test\components\esp_type_utils
+      path: C:\Users\socra\Documents\GitHub\iot-project\platformio\wifi_mqtt_test_concept4\components\esp_type_utils
       type: local
     version: 1.2.5
   espressif/cmake_utilities:
@@ -11,11 +11,17 @@ dependencies:
       service_url: https://api.components.espressif.com/
       type: service
     version: 0.5.3
+  espressif/led_strip:
+    component_hash: null
+    source:
+      path: C:\Users\socra\Documents\GitHub\iot-project\platformio\wifi_mqtt_test_concept4\components\espressif__led_strip
+      type: local
+    version: 2.5.5
   idf:
     component_hash: null
     source:
       type: idf
     version: 5.4.0
-manifest_hash: ae005bcab3d7a2a6ab009f182a92d59a58aea7d14d1add3bd6c3893cf33064e6
+manifest_hash: c43e97ae3523fdcb9f21285f018b2dc6388a52c7270ffe525811099b5139dbb0
 target: esp32c3
 version: 1.0.0

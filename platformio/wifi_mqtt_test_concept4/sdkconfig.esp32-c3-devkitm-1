@@ -463,6 +463,12 @@ CONFIG_PARTITION_TABLE_MD5=y
 # end of Partition Table
 
 #
+# Builtin LED
+#
+CONFIG_BUILTIN_LED_GPIO=48
+# end of Builtin LED
+
+#
 # Compiler options
 #
 CONFIG_COMPILER_OPTIMIZATION_DEBUG=y
