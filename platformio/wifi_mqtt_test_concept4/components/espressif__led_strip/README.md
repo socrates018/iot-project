@@ -1,0 +1,2 @@
+Component: espressif__led_strip
+Copied from sensor_test_with_led/components/espressif__led_strip
