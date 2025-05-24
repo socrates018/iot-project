@@ -12,7 +12,20 @@ Make sure your firewall allows UDP traffic on the specified port.
 """
 import socket
 
-UDP_IP = "0.0.0.0"  # Listen on all interfaces
+# Helper function to get the local WiFi IP address
+def get_local_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # Doesn't have to be reachable
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+    except Exception:
+        ip = "127.0.0.1"
+    finally:
+        s.close()
+    return ip
+
+UDP_IP = get_local_ip()  # Automatically detect local WiFi IP
 UDP_PORT = 8080      # Must match the ESP32 sender
 
 print(f"Listening for UDP packets on {UDP_IP}:{UDP_PORT}...")
