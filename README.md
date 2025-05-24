@@ -1,187 +1,90 @@
+# IoT Project: Concept 4 Architecture  
 
-# IoT Environmental Monitoring System  
-**University Course "IoT" Project**  
+## Project Evolution: From Concept 3 to Concept 4  
 
----
+This project initially started with Concept 3, but was later upgraded to Concept 4 for improved scalability and real-world deployment. You can find visual diagrams for each concept in the `concepts/` folder.  
 
-## Table of Contents  
-1. [Project Overview](#-project-overview)  
-2. [System Architecture](#-system-architecture)  
-3. [Hardware Configuration](#-hardware-configuration)  
-4. [Software Implementation](#-software-implementation)  
-5. [Network Configuration](#-network-configuration)  
-6. [Testing & Validation](#-testing--validation)  
-7. [Setup & Installation](#-setup--installation)  
-8. [Security Considerations](#-security-considerations)  
-9. [Future Roadmap](#-future-roadmap)  
-10. [Resources](#-resources)  
-11. [Contributors](#-contributors)  
+### Concept 1  
+// TODO: User, please add a brief description of Concept 1 here.  
 
----
+### Concept 2  
+// TODO: User, please add a brief description of Concept 2 here.  
 
-## 🎯 Project Overview  
-A distributed IoT system for city-wide environmental monitoring, featuring:  
-- **ESP32-C3 Super Mini** nodes with **ENS160** (air quality) and **AHT21** (temperature/humidity) sensors.  
-- **Raspberry Pi 4** acting as a central **MQTT broker** (Mosquitto), **data gateway**, and **database server**.  
-- **InfluxDB** for lightweight, time-series data storage.  
-- **Grafana** for real-time dashboard visualization.  
+### Concept 3 (Initial Design)  
+- ESP32 sensor nodes collect environmental data and send it directly to a central server or broker.  
+- Centralized approach, but less scalable for distributed, real-world deployments where each node is in a different home.  
 
-**Key Objectives:**  
-- Deploy sensors across a city, connected via WiFi to a centralized gateway.  
-- Implement secure MQTT communication with QoS 1.  
-- Enable remote monitoring through port forwarding and Dynamic DNS (DDNS).  
-- Design a cost-effective and scalable architecture.  
+### Concept 4 (Final Design)  
+- Each ESP32 sensor node is paired with a Raspberry Pi gateway (Raspberry Pi 1) in a home.  
+- Sensor data is sent via UDP from ESP32 to the local Raspberry Pi 1.  
+- Raspberry Pi 1 uses DDNS and port forwarding to act as a gateway, publishing data to a remote MQTT broker.  
+- A second Raspberry Pi (Raspberry Pi 2) subscribes to the MQTT broker, writes data to a remote database, and hosts a web server for visualization.  
+- This distributed, gateway-based approach is more robust and scalable for real-world, multi-home deployments.  
 
----
+**Why Concept 4?**  
+- Concept 4 was chosen because it allows each ESP32 node to be deployed in a different home, with a local gateway (Raspberry Pi 1) handling connectivity and security via DDNS and port forwarding. This makes the system scalable, secure, and suitable for real-world use where direct access to each ESP32 from the internet is not feasible.  
 
-## 🏗 System Architecture  
-```plaintext
-                                                                               
-[ENS160 + AHT21 Sensors]                 [Raspberry Pi 4 Gateway]  
-              │                                      │  
-              ▼                                      ▼  
-[ESP32-C3] → I²C → Sensor Data → WiFi → Mosquitto MQTT Broker → InfluxDB  
-              │                                      │                  ▲  
-              └───────── Neopixel (GPIO8) ───────────┘                  └── Grafana Dashboard  
+This repository implements a distributed IoT system for environmental sensing and data collection, based on Concept 4. The system is designed for real-world deployment, with each ESP32 sensor node and Raspberry Pi gateway located in different homes, using DDNS and port forwarding for remote connectivity. The architecture includes ESP32-C3 Super Mini boards, environmental sensors, two Raspberry Pi devices, a remote MQTT broker, and a remote database server.  
 
-**Flow Explanation:**  
-1. Sensors transmit data via I²C to ESP32-C3 nodes.  
-2. ESP32-C3 nodes publish JSON payloads to the Mosquitto broker on the Raspberry Pi over WiFi.  
-3. The Raspberry Pi processes data and stores it in InfluxDB.  
-4. Grafana pulls data from InfluxDB for visualization.  
-5. Neopixel LEDs on ESP32-C3 provide local status feedback (e.g., air quality alerts).  
+## System Overview  
 
----
+- **ESP32 Sensor Nodes** (PlatformIO projects in `platformio/`):  
+  - Hardware: ESP32-C3 Super Mini boards  
+  - Sensors: AHT20 (temperature/humidity), ENS160 (air quality/CO2/TVOC)  
+  - Each ESP32 node is deployed in a separate home, collecting local environmental data.  
+  - Sensor data is sent via UDP to a Raspberry Pi gateway (Raspberry Pi 1) in the same home.  
 
-## 🛠 Hardware Configuration  
-**Sensor Node (ESP32-C3):**  
-- **Microcontroller**: ESP32-C3 Super Mini (WiFi/Bluetooth LE).  
-- **Sensors**:  
-  - [ENS160](https://www.sciosense.com/products/environmental-sensors/ens160/) (Air Quality: CO₂, TVOC, AQI).  
-  - [AHT21](https://www.adafruit.com/product/4566) (Temperature & Humidity).  
-- **Peripheral**: Neopixel LED (GPIO8) for visual alerts.  
+- **Raspberry Pi 1 (raspberry1) – Home Gateway**:  
+  - Runs a UDP server to receive sensor data from the local ESP32 node (see `platformio/wifi_mqtt_test_concept4/udp_server_raspi_example.py`).  
+  - Uses Dynamic DNS (DDNS) and port forwarding to be accessible from outside the home network.  
+  - Acts as a gateway: receives UDP packets, parses them, and publishes the data to a remote MQTT broker.  
+  - Example scripts and templates are in the `raspberry1/` folder, including class examples for MQTT publishing.  
 
-**Gateway (Raspberry Pi 4):**  
-- **CPU**: Broadcom BCM2711 (Quad-core Cortex-A72).  
-- **Storage**: 64GB MicroSD card.  
-- **Connectivity**: Ethernet/WiFi for 24/7 operation.  
+- **Remote MQTT Broker**:  
+  - Hosted on a remote server (cloud or university server).  
+  - Receives published sensor data from all Raspberry Pi 1 gateways (from different homes).  
+  - Forwards data to all subscribers, including Raspberry Pi 2 and other clients.  
 
----
+- **Raspberry Pi 2 (raspberry2) – Remote Data Aggregator**:  
+  - Subscribes to the remote MQTT broker to receive sensor data from all homes.  
+  - Saves incoming data to a remote database (e.g., InfluxDB) for long-term storage and analysis.  
+  - Hosts a web server to visualize or provide access to the stored data.  
+  - Example scripts for MQTT-to-DB and web server are in the `raspberry2/` folder.  
 
-## 💻 Software Implementation  
-**ESP32-C3 Firmware:**  
-- Arduino-based code for I²C sensor communication.  
-- MQTT client ([PubSubClient](https://github.com/knolleary/pubsubclient) library) with QoS 1.  
-- JSON payload format:  
-  ```json
-  {
-    "node_id": "node_01",
-    "temp": 23.5,
-    "humidity": 45,
-    "aqi": 12,
-    "timestamp": 1678901234
-  }
-  ```  
+- **Remote Database Server**:  
+  - Stores all sensor data received via MQTT.  
+  - Can be queried by the web server for visualization and analytics.  
 
-**Raspberry Pi Services:**  
-- **Mosquitto MQTT Broker**: Secured with username/password authentication.  
-- **InfluxDB**: Time-series database with retention policies.  
-- **Grafana**: Dashboard configured with real-time graphs and alerts.  
+## Deployment Details  
 
----
+- **DDNS & Port Forwarding**: Each Raspberry Pi 1 uses a DDNS service (e.g., DuckDNS, No-IP) and router port forwarding to allow ESP32 nodes to send UDP packets from anywhere, and to enable remote management.  
+- **Distributed Homes**: Each ESP32 and Raspberry Pi 1 pair is installed in a different home, enabling a scalable, multi-location sensor network.  
+- **Security**: Ensure strong passwords and secure port forwarding on all home routers.  
 
-## 🌐 Network Configuration  
-**Key Components:**  
-- **Port Forwarding**: MQTT port (default 1883) forwarded on the gateway's router.  
-- **Dynamic DNS (DDNS)**: Ensures consistent domain name (e.g., `gateway.example.com`) despite dynamic public IP changes.  
-- **Static IP**: Raspberry Pi assigned a static LAN IP (e.g., `192.168.1.100`).  
+## Folder Structure  
+- `platformio/` - ESP32 firmware projects (sensor, LED, WiFi/MQTT/UDP examples)  
+- `raspberry1/` - Gateway scripts for UDP-to-MQTT publishing, DDNS setup, and class MQTT examples  
+- `raspberry2/` - Scripts for MQTT subscription, database writing, and web server  
+- `pymakr/` - MicroPython projects for ESP32 (optional/legacy)  
+- `concepts/` - Project concept images and documentation  
 
-**Deployment Topology:**  
-- Sensors connect to the gateway via public IP/domain over WiFi.  
-- Data flows: `Sensor → Public Internet → DDNS → Raspberry Pi → InfluxDB`.  
+## Getting Started  
+1. **ESP32 Nodes**: Flash the appropriate firmware from `platformio/` to your ESP32-C3 Super Mini boards. Connect AHT20 and ENS160 sensors as described in the project documentation.  
+2. **Raspberry Pi 1**: Set up DDNS and port forwarding. Run the UDP server and MQTT publisher scripts from `raspberry1/`.  
+3. **MQTT Broker**: Set up a remote MQTT broker (e.g., Mosquitto, HiveMQ) accessible to all Raspberry Pis and the remote server.  
+4. **Raspberry Pi 2**: Run the MQTT subscriber, database writer, and web server scripts from `raspberry2/`.  
+5. **Remote Database**: Ensure the remote database server (e.g., InfluxDB) is running and accessible.  
 
----
+See the README files in each subfolder for detailed setup and usage instructions. Refer to the class example scripts in `raspberry1/class_examples/` for MQTT publishing and other utilities.  
 
-## 🧪 Testing & Validation  
-1. **Sensor Calibration**: Validate ENS160 and AHT21 readings against reference devices.  
-2. **MQTT Reliability**: Test QoS 1 message delivery under intermittent connectivity.  
-3. **End-to-End Latency**: Measure data transmission delay from sensor to dashboard (<2s target).  
-4. **Stress Testing**: Simulate 20+ nodes publishing simultaneously.  
+## Requirements  
+- ESP32-C3 Super Mini boards with AHT20 and ENS160 sensors  
+- Two Raspberry Pi devices (or similar Linux SBCs)  
+- DDNS service and router port forwarding for each home gateway  
+- Remote MQTT broker  
+- Remote database server (e.g., InfluxDB)  
+- Python 3.x (for Raspberry Pi scripts)  
+- PlatformIO (for ESP32 firmware)  
 
----
-
-## ⚙ Setup & Installation  
-### Raspberry Pi Setup  
-1. Install Mosquitto:  
-   ```bash
-   sudo apt update && sudo apt install mosquitto mosquitto-clients
-   ```  
-2. Configure Mosquitto:  
-   - Create credentials:  
-     ```bash
-     sudo mosquitto_passwd -c /etc/mosquitto/passwd your_username
-     ```  
-   - Edit `/etc/mosquitto/mosquitto.conf` to enable authentication.  
-3. Install InfluxDB & Grafana:  
-   ```bash
-   wget -q https://repos.influxdata.com/influxdb.key
-   sudo apt-key add influxdb.key
-   echo "deb https://repos.influxdata.com/debian buster stable" | sudo tee /etc/apt/sources.list.d/influxdb.list
-   sudo apt update && sudo apt install influxdb grafana
-   ```  
-4. Start services:  
-   ```bash
-   sudo systemctl enable influxdb grafana-server mosquitto
-   ```  
-
-### ESP32-C3 Setup  
-1. Flash firmware using [PlatformIO](https://platformio.org/) or Arduino IDE.  
-2. Configure `config.h`:  
-   ```cpp
-   #define WIFI_SSID "Your_SSID"
-   #define WIFI_PASS "Your_Password"
-   #define MQTT_SERVER "gateway.example.com"
-   #define MQTT_USER "your_username"
-   #define MQTT_PASS "your_password"
-   ```  
-
----
-
-## 🔒 Security Considerations  
-- **MQTT Security**:  
-  - Use TLS/SSL encryption (see [Mosquitto TLS guide](https://mosquitto.org/man/mosquitto-tls-7.html)).  
-  - Enforce client authentication.  
-- **Network Security**:  
-  - Regularly update Raspberry Pi OS and services.  
-  - Restrict SSH access via `ufw` firewall.  
-- **Data Privacy**: Anonymize sensor locations in public dashboards.  
-
----
-
-## 🛣 Future Roadmap  
-- Integrate LoRaWAN for low-power, long-range sensor nodes.  
-- Migrate to InfluxDB Cloud for centralized monitoring.  
-- Add edge computing (e.g., anomaly detection on Raspberry Pi).  
-- Implement OTA firmware updates for ESP32-C3 nodes.  
-
----
-
-## 📚 Resources  
-- **Mosquitto MQTT**: [mosquitto.org](https://mosquitto.org/)  
-- **InfluxDB Documentation**: [docs.influxdata.com](https://docs.influxdata.com/influxdb/v2.6/)  
-- **Grafana Dashboard Setup**: [grafana.com/docs](https://grafana.com/docs/grafana/latest/datasources/influxdb/)  
-
----
-
-## 👥 Contributors  
-- [John Doe](https://github.com/johndoe) - Hardware Integration  
-- [Jane Smith](https://github.com/janesmith) - Software Development  
-- University of IoT, Class of 2023  
-``` 
-
-**Key Improvements:**  
-- Added detailed code snippets with syntax highlighting.  
-- Included direct links to hardware datasheets and software libraries.  
-- Expanded setup instructions with step-by-step commands.  
-- Added security guide references and firewall tips.  
-- Improved readability with consistent formatting and emojis.
+## License  
+MIT
