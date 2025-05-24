@@ -1,5 +1,29 @@
 # IoT Project: Concept 4 Architecture  
 
+## Project Evolution: From Concept 3 to Concept 4  
+
+This project initially started with Concept 3, but was later upgraded to Concept 4 for improved scalability and real-world deployment. You can find visual diagrams for each concept in the `concepts/` folder.  
+
+### Concept 1  
+// TODO: User, please add a brief description of Concept 1 here.  
+
+### Concept 2  
+// TODO: User, please add a brief description of Concept 2 here.  
+
+### Concept 3 (Initial Design)  
+- ESP32 sensor nodes collect environmental data and send it directly to a central server or broker.  
+- Centralized approach, but less scalable for distributed, real-world deployments where each node is in a different home.  
+
+### Concept 4 (Final Design)  
+- Each ESP32 sensor node is paired with a Raspberry Pi gateway (Raspberry Pi 1) in a home.  
+- Sensor data is sent via UDP from ESP32 to the local Raspberry Pi 1.  
+- Raspberry Pi 1 uses DDNS and port forwarding to act as a gateway, publishing data to a remote MQTT broker.  
+- A second Raspberry Pi (Raspberry Pi 2) subscribes to the MQTT broker, writes data to a remote database, and hosts a web server for visualization.  
+- This distributed, gateway-based approach is more robust and scalable for real-world, multi-home deployments.  
+
+**Why Concept 4?**  
+- Concept 4 was chosen because it allows each ESP32 node to be deployed in a different home, with a local gateway (Raspberry Pi 1) handling connectivity and security via DDNS and port forwarding. This makes the system scalable, secure, and suitable for real-world use where direct access to each ESP32 from the internet is not feasible.  
+
 This repository implements a distributed IoT system for environmental sensing and data collection, based on Concept 4. The system is designed for real-world deployment, with each ESP32 sensor node and Raspberry Pi gateway located in different homes, using DDNS and port forwarding for remote connectivity. The architecture includes ESP32-C3 Super Mini boards, environmental sensors, two Raspberry Pi devices, a remote MQTT broker, and a remote database server.  
 
 ## System Overview  
