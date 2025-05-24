@@ -1,24 +1,10 @@
 import requests
 from requests.auth import HTTPBasicAuth
+import getpass
 
-INFLUXDB_URL = "http://10.64.44.156:8086" # Public IP: 194.177.207.38
+INFLUXDB_URL = "http://194.177.207.38:8086"  # Private IP: 10.64.44.156:8086
 ADMIN_USER = "username"
-ADMIN_PASS = "password"
-
-def create_user(username, password):
-  query = f"CREATE USER {username} WITH PASSWORD '{password}'"
-  response = requests.get(f"{INFLUXDB_URL}/query", params={"q": query}, auth=HTTPBasicAuth(ADMIN_USER, ADMIN_PASS))
-  print("Create user:", response.text)
-
-def create_database(db_name):
-  query = f"CREATE DATABASE {db_name}"
-  response = requests.get(f"{INFLUXDB_URL}/query", params={"q": query}, auth=HTTPBasicAuth(ADMIN_USER, ADMIN_PASS))
-  print("Create database:", response.text)
-
-def grant_privileges(username, db_name):
-  query = f"GRANT ALL ON {db_name} TO {username}"
-  response = requests.get(f"{INFLUXDB_URL}/query", params={"q": query}, auth=HTTPBasicAuth(ADMIN_USER, ADMIN_PASS))
-  print("Grant privileges:", response.text)
+# ADMIN_PASS = "password"  # No longer hardcoded
 
 def insert_data(db_name, user, password, measurement, value, timestamp=None):
   line = f"{measurement} value={value}"
@@ -36,6 +22,7 @@ def query_data(db_name, user, password, measurement):
                           params={"db": db_name, "q": query},
                           auth=HTTPBasicAuth(user, password))
   print("Query result:", response.text)
+  return response
 
 def delete_data(db_name, user, password, condition="time < now()"):
   query = f"DELETE FROM air_temperature WHERE {condition}"
@@ -45,15 +32,25 @@ def delete_data(db_name, user, password, condition="time < now()"):
   print("Delete data:", response.text)
 
 student_user = "team19"
-student_pass = "team19(@#$"
+student_pass = "team19(@#!"
 db_name = "team19_db"
 measurement = "air_temperature"
 
-# create_user(student_user, student_pass)
-# create_database(db_name)
-# grant_privileges(student_user, db_name)
+# Query all data
+response = query_data(db_name, student_user, student_pass, measurement)
 
-insert_data(db_name, student_user, student_pass, measurement, 25.5)
-query_data(db_name, student_user, student_pass, measurement)
-# insert_data(db_name, student_user, student_pass, measurement, 24.0, timestamp="1746614535228053223")  # Optional timestamp
-# delete_data(db_name, student_user, student_pass)
+# Check if data exists and print confirmation
+try:
+    data = response.json()
+    results = data.get("results", [])
+    if results and "series" in results[0]:
+        print("✅ Data found in the database.")
+        # Save all data to a local file
+        with open("exported_data.txt", "w", encoding="utf-8") as f:
+            import json
+            json.dump(results[0]["series"], f, indent=2)
+        print("📁 All data exported to 'exported_data.txt'.")
+    else:
+        print("⚠️ No data found in the database.")
+except Exception as e:
+    print("❌ Error processing response:", e)
