@@ -4,7 +4,7 @@ import getpass
 
 INFLUXDB_URL = "http://194.177.207.38:8086"  # Private IP: 10.64.44.156:8086
 ADMIN_USER = "username"
-# ADMIN_PASS = "password"  # No longer hardcoded
+ADMIN_PASS = "password"  # No longer hardcoded
 
 def insert_data(db_name, user, password, measurement, value, timestamp=None):
   line = f"{measurement} value={value}"
@@ -32,7 +32,7 @@ def delete_data(db_name, user, password, condition="time < now()"):
   print("Delete data:", response.text)
 
 student_user = "team19"
-student_pass = "team19(@#!"
+student_pass = "team19(@#$"
 db_name = "team19_db"
 measurement = "air_temperature"
 
