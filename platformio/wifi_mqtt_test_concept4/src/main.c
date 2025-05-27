@@ -31,26 +31,22 @@
 #define I2C_MASTER_SCL_IO           9
 #define I2C_MASTER_SDA_IO           7
 #define I2C_MASTER_FREQ_HZ          100000
-#define I2C_MASTER_PORT             0
+#define I2C_MASTER_PORT             0 // Added missing definition
 
 // LED configuration
 #define NEOPIXEL_GPIO 8
 #define NUM_PIXELS    1
 
 // UDP configuration
-#define UDP_TARGET_HOST   "team19pi.ddns.net"
-#define UDP_TARGET_PORT   8080
-
-// Use static const for string literals to keep them in flash
-static const char WIFI_SSID_STR[] = WIFI_SSID;
-static const char WIFI_PASS_STR[] = WIFI_PASS;
-static const char UDP_HOST_STR[] = UDP_TARGET_HOST;
-static const char TAG[] = "SENSOR_UDP";
+#define UDP_TARGET_HOST   "team19pi.ddns.net" // Changed from IP to hostname
+#define UDP_TARGET_PORT   8080 // Changed port to 8080
 
 // Event group for WiFi connection
 static EventGroupHandle_t s_wifi_event_group;
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_FAIL_BIT      BIT1
+
+static const char *TAG = "SENSOR_UDP";
 
 // WiFi event handler: Handles WiFi and IP events for connection management
 static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
@@ -70,9 +66,9 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 // Sends sensor data as a UDP packet to the configured host and port
 static void udp_send_sensor_data(const char *payload) {
     struct sockaddr_in dest_addr = {0};
-    struct hostent *he = gethostbyname(UDP_HOST_STR);
+    struct hostent *he = gethostbyname(UDP_TARGET_HOST);
     if (!he || he->h_addr_list == NULL || he->h_addr_list[0] == NULL) {
-        ESP_LOGE(TAG, "DNS lookup failed for %s", UDP_HOST_STR);
+        ESP_LOGE(TAG, "DNS lookup failed for %s", UDP_TARGET_HOST);
         return;
     }
     int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
@@ -107,8 +103,8 @@ static void wifi_init_sta(void) {
     ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler, NULL, &instance_got_ip));
     wifi_config_t wifi_config = {
         .sta = {
-            .ssid = WIFI_SSID_STR,
-            .password = WIFI_PASS_STR,
+            .ssid = WIFI_SSID,
+            .password = WIFI_PASS,
         },
     };
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
@@ -117,7 +113,7 @@ static void wifi_init_sta(void) {
     ESP_LOGI(TAG, "WiFi started, waiting for connection...");
     EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group, WIFI_CONNECTED_BIT | WIFI_FAIL_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
     if (bits & WIFI_CONNECTED_BIT) {
-        ESP_LOGI(TAG, "Connected to WiFi: %s", WIFI_SSID_STR);
+        ESP_LOGI(TAG, "Connected to WiFi: %s", WIFI_SSID);
     } else {
         ESP_LOGE(TAG, "WiFi connection failed");
     }
