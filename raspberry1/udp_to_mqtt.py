@@ -1,32 +1,47 @@
 #!/usr/bin/env python3
 """
-UDP Server Example for Concept 4
+UDP to MQTT Gateway for ESP32 Sensor Nodes
 
-Listens for UDP packets from ESP32 sensor nodes, identifies them by MAC address,
-and publishes their data to an MQTT broker.
-Designed to run on a Raspberry Pi (or any Linux system with Python 3).
+This script acts as a gateway between multiple ESP32 sensor nodes (sending UDP packets)
+and an MQTT broker. It is designed to run on a Raspberry Pi or similar Linux system.
 
-Usage:
-    python3 udp_server_raspi_example.py
+How it works:
+- The script listens for UDP packets on a specified port (default: 8080).
+- Each ESP32 sensor node sends its sensor data as a JSON string via UDP. The JSON must include a unique 'id' field (e.g., last 3 bytes of MAC address) and all sensor values (e.g., temp, hum, caqi, tvoc, eco2, timestamp).
+- When a UDP packet is received, the script decodes the JSON and stores the latest reading for each ESP32 node in a dictionary, keyed by 'id'.
+- Every PUBLISH_INTERVAL seconds, the script publishes a single MQTT message to the topic MQTT_TOPIC (e.g., 'iot/team19'). This message is a JSON array containing the most recent reading from each ESP32 node.
+- This approach ensures that the MQTT broker receives only one organized message per interval, containing all current sensor values from all nodes, reducing message flooding and making downstream processing (e.g., InfluxDB, Grafana) much easier.
 
-Make sure your firewall allows UDP traffic on the specified port.
-Requirements:
-    - paho-mqtt: pip install paho-mqtt
+Configuration is done via defines at the top of the script. You can adjust the UDP port, MQTT broker address, topic, publish interval, and other parameters as needed.
+
+Example MQTT message payload:
+[
+  {"id": "AABBCC", "temp": 23.4, "hum": 56.7, ...},
+  {"id": "DDEEFF", "temp": 24.1, "hum": 55.1, ...},
+  ...
+]
+
+This design is scalable (works for 4 or 100+ ESPs), efficient, and easy to integrate with data pipelines.
 """
+
+# --- Configuration Defines ---
+UDP_PORT = 8080  # UDP port to listen on (must match ESP32 sender)
+MQTT_BROKER = "194.177.207.38"  # MQTT broker address
+MQTT_PORT = 1883  # MQTT broker port
+MQTT_CLIENT_ID = "raspberry_pi_udp_gateway"  # MQTT client ID for this gateway
+MQTT_TOPIC_PREFIX = "iot/team19/"  # MQTT topic prefix (final topic is 'iot/team19')
+MQTT_USERNAME = "team19"  # MQTT username
+MQTT_RETRY_INTERVAL = 5    # Seconds between MQTT connection retry attempts
+MAX_RETRY_ATTEMPTS = 3     # Maximum number of MQTT connection retry attempts
+PUBLISH_INTERVAL = 2       # Seconds between MQTT publishes (batch interval)
+
 import socket
 import json
 import paho.mqtt.client as mqtt
 import time
 import getpass
+import threading
 
-# MQTT Configuration (copied from mqtt_to_influx.py for consistency)
-MQTT_BROKER = "194.177.207.38"  # Use public IP for MQTT broker
-MQTT_PORT = 1883
-MQTT_CLIENT_ID = "raspberry_pi_udp_gateway"
-MQTT_TOPIC_PREFIX = "iot/team19/"  # Match topic used in mqtt_to_influx.py
-MQTT_USERNAME = "team19"  # Same as HOSTNAME in mqtt_to_influx.py
-MQTT_RETRY_INTERVAL = 5    # Seconds between retry attempts
-MAX_RETRY_ATTEMPTS = 3     # Maximum number of connection retry attempts
 MQTT_PASSWORD = getpass.getpass("Enter MQTT password: ")
 
 # Helper function to get the local WiFi IP address
@@ -69,32 +84,41 @@ def setup_mqtt():
                 print("Running in console-only mode (no MQTT)")
                 return None
 
-# Process message and publish to MQTT
+# Store latest reading from each ESP by id
+latest_readings = {}
+
+# Process message and store latest reading per ESP
+# Note: We remove the 'timestamp' field before storing/publishing, as timestamps will be added automatically by the database (InfluxDB)
 def process_message(mqtt_client, data, addr):
     try:
         message = data.decode().strip()
-        
         try:
             json_data = json.loads(message)
-            # Publish to the general topic (no device id)
-            topic = MQTT_TOPIC_PREFIX.rstrip('/')  # e.g. 'iot/team19'
-            if mqtt_client:
-                mqtt_client.publish(topic, message)
-                print(f"Published to {topic}: {message}")
+            device_id = json_data.get("id", None)
+            if device_id:
+                # Remove 'timestamp' if present
+                json_data.pop("timestamp", None)
+                latest_readings[device_id] = json_data
+                print(f"Updated reading for {device_id}: {json_data}")
             else:
-                print(f"Data: {json_data}")
-            
+                print(f"No 'id' in message: {json_data}")
         except json.JSONDecodeError:
-            # Fallback for non-JSON messages
-            if mqtt_client:
-                topic = MQTT_TOPIC_PREFIX.rstrip('/')
-                mqtt_client.publish(topic, message)
-                print(f"Published to {topic}: {message}")
-            else:
-                print(f"Data: {message}")
-                
+            print(f"Non-JSON message from {addr}: {message}")
     except Exception as e:
         print(f"Error processing message: {e}")
+
+# Periodically publish all latest readings in one MQTT message
+PUBLISH_INTERVAL = 2  # seconds
+
+def publish_all_readings():
+    topic = MQTT_TOPIC_PREFIX.rstrip('/')
+    while True:
+        if mqtt_client and latest_readings:
+            # Compose a list of the latest readings from all ESPs
+            payload = json.dumps(list(latest_readings.values()))
+            mqtt_client.publish(topic, payload)
+            print(f"Published to {topic}: {payload}")
+        time.sleep(PUBLISH_INTERVAL)
 
 UDP_IP = get_local_ip()  # Automatically detect local WiFi IP
 UDP_PORT = 8080      # Must match the ESP32 sender
@@ -111,14 +135,16 @@ if mqtt_client is None:
     print("Continuing without MQTT connection - messages will be printed to console only")
     # Remove the exit here to allow console-only mode
 
+# Start the periodic publisher in a background thread
+publisher_thread = threading.Thread(target=publish_all_readings, daemon=True)
+publisher_thread.start()
+
 try:
     while True:
         data, addr = sock.recvfrom(1024)  # Buffer size is 1024 bytes
         print(f"Received from {addr}: {data.decode().strip()}")
-        
-        # Process and publish to MQTT
+        # Process and store latest reading
         process_message(mqtt_client, data, addr)
-            
 except KeyboardInterrupt:
     print("\nServer stopped by user.")
 finally:
