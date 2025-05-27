@@ -35,7 +35,7 @@ def show_measurements(db_name, user, password):
     return response
 
 def delete_data(db_name, user, password, condition="time < now()"):
-  query = f"DELETE FROM air_temperature WHERE {condition}"
+  query = f"DELETE FROM {measurement} WHERE {condition}"
   response = requests.get(f"{INFLUXDB_URL}/query",
                           params={"db": db_name, "q": query},
                           auth=HTTPBasicAuth(user, password))
@@ -44,7 +44,7 @@ def delete_data(db_name, user, password, condition="time < now()"):
 student_user = "team19"
 student_pass = "***REMOVED***"
 db_name = "team19_db"
-measurement = "air_temperature"
+measurement = "airTemperature"  # Example measurement
 
 # Query all data from measurement (specific category e.g. air_temperature)
 response = query_data(db_name, student_user, student_pass, measurement)
