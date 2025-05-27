@@ -23,7 +23,7 @@ import getpass
 MQTT_BROKER = "194.177.207.38"  # Use public IP for MQTT broker
 MQTT_PORT = 1883
 MQTT_CLIENT_ID = "raspberry_pi_udp_gateway"
-MQTT_TOPIC_PREFIX = "esp/sensors/"  # Topic prefix, will append device id
+MQTT_TOPIC_PREFIX = "iot/team19/"  # Match topic used in mqtt_to_influx.py
 MQTT_USERNAME = "team19"  # Same as HOSTNAME in mqtt_to_influx.py
 MQTT_RETRY_INTERVAL = 5    # Seconds between retry attempts
 MAX_RETRY_ATTEMPTS = 3     # Maximum number of connection retry attempts
@@ -76,26 +76,22 @@ def process_message(mqtt_client, data, addr):
         
         try:
             json_data = json.loads(message)
-            mac_address = json_data.get("mac", "unknown")
+            # Publish to the general topic (no device id)
+            topic = MQTT_TOPIC_PREFIX.rstrip('/')  # e.g. 'iot/team19'
             if mqtt_client:
-                topic = f"{MQTT_TOPIC_PREFIX}{mac_address}"
                 mqtt_client.publish(topic, message)
                 print(f"Published to {topic}: {message}")
             else:
-                print(f"Data from {mac_address}: {json_data}")
+                print(f"Data: {json_data}")
             
         except json.JSONDecodeError:
-            parts = message.split(":", 1)
-            if len(parts) == 2:
-                mac_address, sensor_data = parts
-                if mqtt_client:
-                    topic = f"{MQTT_TOPIC_PREFIX}{mac_address}"
-                    mqtt_client.publish(topic, sensor_data)
-                    print(f"Published to {topic}: {sensor_data}")
-                else:
-                    print(f"Data from {mac_address}: {sensor_data}")
+            # Fallback for non-JSON messages
+            if mqtt_client:
+                topic = MQTT_TOPIC_PREFIX.rstrip('/')
+                mqtt_client.publish(topic, message)
+                print(f"Published to {topic}: {message}")
             else:
-                print(f"Invalid message format from {addr}: {message}")
+                print(f"Data: {message}")
                 
     except Exception as e:
         print(f"Error processing message: {e}")
