@@ -73,6 +73,99 @@
       ],
       "title": "Humidity (last 1h)",
       "type": "timeseries"
+    },
+    {
+      "datasource": "InfluxDB",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 9
+      },
+      "id": 3,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "query": "from(bucket: \"team19_db\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"tvoc\")\n  |> filter(fn: (r) => r._field == \"value\")",
+          "refId": "C"
+        }
+      ],
+      "title": "TVOC (last 1h)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "InfluxDB",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 9
+      },
+      "id": 4,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "query": "from(bucket: \"team19_db\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"eco2\")\n  |> filter(fn: (r) => r._field == \"value\")",
+          "refId": "D"
+        }
+      ],
+      "title": "eCO2 (last 1h)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "InfluxDB",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 18
+      },
+      "id": 5,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "query": "from(bucket: \"team19_db\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"caqi\")\n  |> filter(fn: (r) => r._field == \"value\")",
+          "refId": "E"
+        }
+      ],
+      "title": "CAQI (last 1h)",
+      "type": "timeseries"
     }
   ],
   "refresh": "10s",
