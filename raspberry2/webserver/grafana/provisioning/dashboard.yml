@@ -1,16 +1,11 @@
 apiVersion: 1
 
-datasources:
-  - name: InfluxDB
-    type: influxdb
-    access: proxy
-    url: http://194.177.207.38:8086
-    basicAuth: true
-    basicAuthUser: team19
-    basicAuthPassword: ***REMOVED***
-    jsonData:
-      version: Flux
-      organization: team19
-      defaultBucket: team19_db
-    secureJsonData: {}
-    isDefault: true
+providers:
+  - name: 'Team19 Dashboard'
+    orgId: 1
+    folder: ''
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 60
+    options:
+      path: /etc/grafana/provisioning/dashboards
