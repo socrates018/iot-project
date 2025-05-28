@@ -1,0 +1,30 @@
+# Ignore PlatformIO and build artifacts
+.pio/
+build/
+
+# Ignore firmware and binary outputs
+*.bin
+*.elf
+*.hex
+*.exe
+*.o
+*.obj
+
+# Ignore Python cache and virtual environments
+*.pyc
+__pycache__/
+venv/
+.venv/
+
+# Ignore VSCode and OS-specific files
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Ignore logs and temporary files
+*.log
+*.tmp
+
+# Ignore dependency lock files (optional)
+Pipfile.lock
+dependencies.lock
