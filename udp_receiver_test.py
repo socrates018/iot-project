@@ -8,6 +8,10 @@ sock.bind((UDP_IP, UDP_PORT))
 
 print(f"Listening for UDP packets on port {UDP_PORT}...")
 
-while True:
-    data, addr = sock.recvfrom(1024)  # buffer size is 1024 bytes
-    print(f"Received message from {addr}: {data.decode('utf-8')}")
+try:
+    while True:
+        data, addr = sock.recvfrom(1024)  # buffer size is 1024 bytes
+        print(f"Received message from {addr}: {data.decode('utf-8')}")
+except KeyboardInterrupt:
+    print("\nStopped by user.")
+    sock.close()
