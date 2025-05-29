@@ -111,13 +111,14 @@ def process_message(mqtt_client, data, addr):
 PUBLISH_INTERVAL = 2  # seconds
 
 def publish_all_readings():
-    topic = MQTT_TOPIC_PREFIX.rstrip('/')
+    # Publish each device's latest reading to its own topic
     while True:
         if mqtt_client and latest_readings:
-            # Compose a list of the latest readings from all ESPs
-            payload = json.dumps(list(latest_readings.values()))
-            mqtt_client.publish(topic, payload)
-            print(f"Published to {topic}: {payload}")
+            for device_id, reading in latest_readings.items():
+                topic = f"{MQTT_TOPIC_PREFIX.rstrip('/')}/{device_id}"
+                payload = json.dumps(reading)
+                mqtt_client.publish(topic, payload)
+                print(f"Published to {topic}: {payload}")
         time.sleep(PUBLISH_INTERVAL)
 
 def main():
@@ -127,6 +128,14 @@ def main():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind((UDP_IP, UDP_PORT))
     print(f"[INFO] UDP socket bound. Waiting for packets...")
+
+    # Start MQTT client in background
+    global mqtt_client
+    mqtt_client = setup_mqtt()
+
+    # Start periodic MQTT publishing in a background thread
+    publisher_thread = threading.Thread(target=publish_all_readings, daemon=True)
+    publisher_thread.start()
 
     # Print debug for each UDP packet received
     def udp_receive_loop():
