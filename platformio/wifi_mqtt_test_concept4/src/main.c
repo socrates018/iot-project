@@ -38,7 +38,7 @@
 #define NUM_PIXELS    1
 
 // UDP configuration
-#define UDP_TARGET_HOST   "192.168.1.11"
+#define UDP_TARGET_HOST   "192.168.1.9"
 #define UDP_TARGET_PORT   8080
 
 // Event group for WiFi connection

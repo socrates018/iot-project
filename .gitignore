@@ -7,6 +7,8 @@ build/
 *.exe
 *.o
 *.obj
+
+# Python
 *.pyc
 __pycache__/
 
@@ -14,12 +16,35 @@ __pycache__/
 venv/
 .venv/
 
-# Ignore VSCode settings
+# Ignore VSCode and IDE settings
 .vscode/
+.idea/
+*.code-workspace
 
-# Ignore OS files
+# Ignore OS and miscellaneous files
 .DS_Store
 Thumbs.db
-
-# Ignore test output and logs
 *.log
+
+# Ignore backup and temp files
+*~
+*.swp
+*.swo
+*.bak
+*.tmp
+
+# Node.js (if any JS tooling is used)
+node_modules/
+
+# Test and coverage output
+htmlcov/
+.coverage
+.tox/
+.pytest_cache/
+
+# Jupyter Notebooks checkpoints
+.ipynb_checkpoints/
+
+# Ignore secrets/configs (uncomment and edit as needed)
+# .env
+# config.json
