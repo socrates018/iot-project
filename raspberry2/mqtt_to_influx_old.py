@@ -1,6 +1,5 @@
 import random
 import socket
-import json
 import requests
 import paho.mqtt.client as mqtt
 from requests.auth import HTTPBasicAuth
@@ -9,10 +8,12 @@ import getpass
 # ---------- Configuration ----------
 PRIVATE_IP = "10.64.44.156"
 PUBLIC_IP = "194.177.207.38"
-INFLUXDB_URL = f"http://{PUBLIC_IP}:8086"
-MQTT_BROKER = PUBLIC_IP
+INFLUXDB_URL = f"http://{PUBLIC_IP}:8086"    # Internal IP for InfluxDB
+MQTT_BROKER = PUBLIC_IP                       # Internal IP for MQTT Broker
 MQTT_PORT = 1883
-HOSTNAME = "team19"
+#HOSTNAME = socket.gethostname()              # π.χ. "team19"
+HOSTNAME = "team19"              
+
 DB_NAME = "team19_db"
 
 # ---------- Prompt for password ----------
@@ -25,28 +26,25 @@ client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id)
 client.username_pw_set(HOSTNAME, MQTT_PASSWORD)
 
 # ---------- InfluxDB insert ----------
-def insert_data(db_name, user, password, measurement, value, timestamp):
-    line = f"{measurement} value={value} {timestamp}"
+def insert_data(db_name, user, password, measurement, value, timestamp=None):
+    line = f"{measurement} value={value}"
+    if timestamp:
+        line += f" {timestamp}"
     response = requests.post(
         f"{INFLUXDB_URL}/write",
         params={"db": db_name},
         data=line,
         auth=HTTPBasicAuth(user, password)
     )
-    print("📤 Insert data:", response.ok, line)
+    print("📤 Insert data:", response.ok)
 
 # ---------- MQTT Callback ----------
 def on_message(client, userdata, msg):
-    try:
-        data = json.loads(msg.payload.decode())
+    measurement = msg.topic.split("/")[-1]
+    value = msg.payload.decode()
 
-        # Περιμένουμε: {"temp":25.4, "timestamp":"2025-05-07T12:54:05.00162557Z", ...}
-        for key in ["temp", "hum", "caqi", "tvoc", "eco2"]:
-            if key in data and "timestamp" in data:
-                insert_data(DB_NAME, HOSTNAME, MQTT_PASSWORD, key, data[key], data["timestamp"])
-                print(f"📥 Write `{data[key]}` to `{key}` at `{data['timestamp']}`")
-    except Exception as e:
-        print("⚠️ Error processing message:", e)
+    insert_data(DB_NAME, HOSTNAME, MQTT_PASSWORD, measurement, value)
+    print(f"📥 Write `{value}` to `{measurement}`")
 
 # ---------- Main loop ----------
 def main():

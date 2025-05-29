@@ -96,8 +96,8 @@ def process_message(mqtt_client, data, addr):
             json_data = json.loads(message)
             device_id = json_data.get("id", None)
             if device_id:
-                # Remove 'timestamp' if present
-                json_data.pop("timestamp", None)
+                # Add/replace 'timestamp' with current unix time
+                json_data["timestamp"] = int(time.time())
                 latest_readings[device_id] = json_data
                 print(f"Updated reading for {device_id}: {json_data}")
             else:
