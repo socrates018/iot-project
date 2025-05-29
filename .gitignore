@@ -1,3 +1,4 @@
+# Ignore PlatformIO and build artifacts
 .pio/
 build/
 *.bin
@@ -8,3 +9,17 @@ build/
 *.obj
 *.pyc
 __pycache__/
+
+# Ignore Python virtual environments
+venv/
+.venv/
+
+# Ignore VSCode settings
+.vscode/
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
+
+# Ignore test output and logs
+*.log
