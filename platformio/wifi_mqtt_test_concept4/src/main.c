@@ -224,8 +224,17 @@ static void sensor_udp_task(void *pvParameters) {
         snprintf(udp_payload, sizeof(udp_payload),
             "{\"temp\":%.2f,\"hum\":%.2f,\"caqi\":%u,\"tvoc\":%u,\"eco2\":%u,\"id\":\"%s\"}",
             temperature, humidity, caqi, air_data.tvoc, air_data.eco2, mac_id);
+        struct hostent *he_dbg = gethostbyname(UDP_TARGET_HOST);
+        if (he_dbg && he_dbg->h_addr_list && he_dbg->h_addr_list[0]) {
+            char ip_dbg[INET_ADDRSTRLEN];
+            inet_ntop(AF_INET, he_dbg->h_addr_list[0], ip_dbg, sizeof(ip_dbg));
+            ESP_LOGI(TAG, "UDP target resolved: %s (%s):%d", UDP_TARGET_HOST, ip_dbg, UDP_TARGET_PORT);
+        } else {
+            ESP_LOGW(TAG, "Could not resolve UDP target host: %s", UDP_TARGET_HOST);
+        }
+        ESP_LOGD(TAG, "Preparing to send UDP packet...");
         udp_send_sensor_data(udp_payload);
-        ESP_LOGI(TAG, "UDP sent: %s", udp_payload);
+        ESP_LOGI(TAG, "UDP packet sent and confirmed: %s", udp_payload);
         vTaskDelay(pdMS_TO_TICKS(2000));
     }
 }
