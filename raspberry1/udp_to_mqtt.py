@@ -28,7 +28,7 @@ This design is scalable (works for 4 or 100+ ESPs), efficient, and easy to integ
 UDP_PORT = 8080  # UDP port to listen on (must match ESP32 sender)
 MQTT_BROKER = "194.177.207.38"  # MQTT broker address
 MQTT_PORT = 1883  # MQTT broker port
-MQTT_CLIENT_ID = "raspberry_pi_udp_gateway"  # MQTT client ID for this gateway
+MQTT_CLIENT_ID = "team19_pi_gateway"  # MQTT client ID for this gateway
 MQTT_TOPIC_PREFIX = "iot/team19/"  # MQTT topic prefix (final topic is 'iot/team19')
 MQTT_USERNAME = "team19"  # MQTT username
 MQTT_RETRY_INTERVAL = 5    # Seconds between MQTT connection retry attempts
@@ -41,6 +41,7 @@ import paho.mqtt.client as mqtt
 import time
 import getpass
 import threading
+import queue
 
 MQTT_PASSWORD = getpass.getpass("Enter MQTT password: ")
 
@@ -107,19 +108,46 @@ def process_message(mqtt_client, data, addr):
     except Exception as e:
         print(f"Error processing message: {e}")
 
-# Periodically publish all latest readings in one MQTT message
-PUBLISH_INTERVAL = 2  # seconds
+# Thread-safe queue for incoming UDP packets
+udp_queue = queue.Queue()
 
-def publish_all_readings():
-    # Publish each device's latest reading to its own topic
-    while True:
-        if mqtt_client and latest_readings:
-            for device_id, reading in latest_readings.items():
+# Worker thread for publishing to MQTT
+class MQTTPublishWorker(threading.Thread):
+    def __init__(self, mqtt_client, udp_queue):
+        super().__init__(daemon=True)
+        self.mqtt_client = mqtt_client
+        self.udp_queue = udp_queue
+
+    def run(self):
+        while True:
+            device_id, reading = self.udp_queue.get()
+            if self.mqtt_client:
                 topic = f"{MQTT_TOPIC_PREFIX.rstrip('/')}/{device_id}"
                 payload = json.dumps(reading)
-                mqtt_client.publish(topic, payload)
+                self.mqtt_client.publish(topic, payload)
                 print(f"Published to {topic}: {payload}")
-        time.sleep(PUBLISH_INTERVAL)
+            self.udp_queue.task_done()
+
+# UDP receive loop (threaded)
+def udp_receive_loop(sock, udp_queue):
+    while True:
+        data, addr = sock.recvfrom(1024)
+        print(f"[DEBUG] UDP packet received from {addr}: {data!r}")
+        try:
+            message = data.decode().strip()
+            json_data = json.loads(message)
+            device_id = json_data.get("id", None)
+            if device_id:
+                json_data["timestamp"] = int(time.time())
+                latest_readings[device_id] = json_data
+                print(f"Updated reading for {device_id}: {json_data}")
+                udp_queue.put((device_id, json_data))
+            else:
+                print(f"No 'id' in message: {json_data}")
+        except json.JSONDecodeError:
+            print(f"Non-JSON message from {addr}: {message}")
+        except Exception as e:
+            print(f"Error processing message: {e}")
 
 def main():
     # Initialize UDP socket and print info before anything else
@@ -133,24 +161,12 @@ def main():
     global mqtt_client
     mqtt_client = setup_mqtt()
 
-    # Start periodic MQTT publishing in a background thread
-    publisher_thread = threading.Thread(target=publish_all_readings, daemon=True)
-    publisher_thread.start()
+    # Start MQTT publish worker thread
+    mqtt_worker = MQTTPublishWorker(mqtt_client, udp_queue)
+    mqtt_worker.start()
 
-    # Print debug for each UDP packet received
-    def udp_receive_loop():
-        while True:
-            data, addr = sock.recvfrom(1024)
-            print(f"[DEBUG] UDP packet received from {addr}: {data!r}")
-            try:
-                decoded = data.decode().strip()
-                print(f"[DEBUG] Decoded UDP data: {decoded}")
-            except Exception as e:
-                print(f"[DEBUG] Error decoding UDP data: {e}")
-            # Process and store latest reading (MQTT may not be set up yet, so pass None)
-            process_message(None, data, addr)
     # Start UDP receive loop in main thread (blocking)
-    udp_receive_loop()
+    udp_receive_loop(sock, udp_queue)
 
 if __name__ == "__main__":
     main()
