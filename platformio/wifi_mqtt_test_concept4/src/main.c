@@ -65,30 +65,36 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 
 // Sends sensor data as a UDP packet to the configured host and port (cleaned up)
 static void udp_send_sensor_data(const char *payload) {
+    // Print diagnostics before sending
+    esp_netif_ip_info_t ip_info;
+    esp_netif_t *netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+    if (netif && esp_netif_get_ip_info(netif, &ip_info) == ESP_OK) {
+        ESP_LOGI(TAG, "Local IP: %s", ip4addr_ntoa((const ip4_addr_t *)&ip_info.ip));
+    } else {
+        ESP_LOGW(TAG, "Could not get local IP info");
+    }
+    ESP_LOGI(TAG, "Preparing to send UDP to %s:%d", UDP_TARGET_HOST, UDP_TARGET_PORT);
+    ESP_LOGI(TAG, "Payload: %s", payload);
+
     struct sockaddr_in dest_addr;
     memset(&dest_addr, 0, sizeof(dest_addr));
     dest_addr.sin_family = AF_INET;
     dest_addr.sin_port = htons(UDP_TARGET_PORT);
-    // Use inet_addr instead of inet_aton for maximum compatibility
-    dest_addr.sin_addr.s_addr = inet_addr(UDP_TARGET_HOST);
-    // Fix: inet_addr returns INADDR_NONE (0xFFFFFFFF) for invalid IP, but also for 255.255.255.255. For valid IPs, check for 0xFFFFFFFF and 0.
-    if (dest_addr.sin_addr.s_addr == INADDR_NONE || dest_addr.sin_addr.s_addr == 0) {
-        ESP_LOGE(TAG, "Invalid UDP target IP: %s", UDP_TARGET_HOST);
+    int pton_result = inet_pton(AF_INET, UDP_TARGET_HOST, &dest_addr.sin_addr);
+    if (pton_result != 1) {
+        ESP_LOGE(TAG, "Invalid UDP target IP (inet_pton failed): %s", UDP_TARGET_HOST);
         return;
     }
     int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (sock < 0) {
-        ESP_LOGE(TAG, "Unable to create UDP socket for %s", UDP_TARGET_HOST);
+        ESP_LOGE(TAG, "Unable to create UDP socket for %s (errno=%d: %s)", UDP_TARGET_HOST, errno, strerror(errno));
         return;
     }
-    // Fix: Set socket option SO_BROADCAST if sending to broadcast address (not needed for 192.168.1.9, but safe for future use)
-    int broadcastEnable = 1;
-    setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &broadcastEnable, sizeof(broadcastEnable));
     int sent = sendto(sock, payload, strlen(payload), 0, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
     if (sent < 0) {
-        ESP_LOGE(TAG, "UDP send failed to %s:%d (errno=%d)", UDP_TARGET_HOST, UDP_TARGET_PORT, errno);
+        ESP_LOGE(TAG, "UDP send failed to %s:%d (errno=%d: %s)", UDP_TARGET_HOST, UDP_TARGET_PORT, errno, strerror(errno));
     } else {
-        ESP_LOGI(TAG, "UDP packet sent to %s:%d", UDP_TARGET_HOST, UDP_TARGET_PORT);
+        ESP_LOGI(TAG, "UDP packet sent to %s:%d (%d bytes)", UDP_TARGET_HOST, UDP_TARGET_PORT, sent);
     }
     close(sock);
 }
