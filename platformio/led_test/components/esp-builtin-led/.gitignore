@@ -1,9 +1,2 @@
 dist/
 .component_hash
-# Ignore build and binary artifacts
-*.o
-*.obj
-*.pyc
-__pycache__/
-*.log
-*.tmp
