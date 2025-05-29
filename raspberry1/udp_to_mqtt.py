@@ -120,34 +120,28 @@ def publish_all_readings():
             print(f"Published to {topic}: {payload}")
         time.sleep(PUBLISH_INTERVAL)
 
-UDP_IP = get_local_ip()  # Automatically detect local WiFi IP
-UDP_PORT = 8080      # Must match the ESP32 sender
+def main():
+    # Initialize UDP socket and print info before anything else
+    UDP_IP = get_local_ip()  # Automatically detect local WiFi IP
+    print(f"[INFO] UDP listener starting on {UDP_IP}:{UDP_PORT}...")
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.bind((UDP_IP, UDP_PORT))
+    print(f"[INFO] UDP socket bound. Waiting for packets...")
 
-print(f"Listening for UDP packets on {UDP_IP}:{UDP_PORT}...")
+    # Print debug for each UDP packet received
+    def udp_receive_loop():
+        while True:
+            data, addr = sock.recvfrom(1024)
+            print(f"[DEBUG] UDP packet received from {addr}: {data!r}")
+            try:
+                decoded = data.decode().strip()
+                print(f"[DEBUG] Decoded UDP data: {decoded}")
+            except Exception as e:
+                print(f"[DEBUG] Error decoding UDP data: {e}")
+            # Process and store latest reading (MQTT may not be set up yet, so pass None)
+            process_message(None, data, addr)
+    # Start UDP receive loop in main thread (blocking)
+    udp_receive_loop()
 
-# Initialize UDP socket
-sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-sock.bind((UDP_IP, UDP_PORT))
-
-# Set up MQTT client
-mqtt_client = setup_mqtt()
-if mqtt_client is None:
-    print("Continuing without MQTT connection - messages will be printed to console only")
-    # Remove the exit here to allow console-only mode
-
-# Start the periodic publisher in a background thread
-publisher_thread = threading.Thread(target=publish_all_readings, daemon=True)
-publisher_thread.start()
-
-try:
-    while True:
-        data, addr = sock.recvfrom(1024)  # Buffer size is 1024 bytes
-        print(f"Received from {addr}: {data.decode().strip()}")
-        # Process and store latest reading
-        process_message(mqtt_client, data, addr)
-except KeyboardInterrupt:
-    print("\nServer stopped by user.")
-finally:
-    if mqtt_client:
-        mqtt_client.loop_stop()
-    sock.close()
+if __name__ == "__main__":
+    main()
