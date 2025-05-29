@@ -24,8 +24,8 @@
 #include <netdb.h> // For gethostbyname
 
 // WiFi configuration
-#define WIFI_SSID "1"
-#define WIFI_PASS "minecraft123"
+#define WIFI_SSID "COSMOTE-203853"//"1"
+#define WIFI_PASS "4tu3a8fesnptt7n5" //"minecraft123"
 
 // I2C configuration for driver_ng
 #define I2C_MASTER_SCL_IO           9
@@ -38,8 +38,8 @@
 #define NUM_PIXELS    1
 
 // UDP configuration
-#define UDP_TARGET_HOST   "team19pi.ddns.net" // Changed from IP to hostname
-#define UDP_TARGET_PORT   8080 // Changed port to 8080
+#define UDP_TARGET_HOST   "192.168.1.9"
+#define UDP_TARGET_PORT   8080
 
 // Event group for WiFi connection
 static EventGroupHandle_t s_wifi_event_group;
@@ -63,27 +63,32 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
     }
 }
 
-// Sends sensor data as a UDP packet to the configured host and port
+// Sends sensor data as a UDP packet to the configured host and port (cleaned up)
 static void udp_send_sensor_data(const char *payload) {
-    struct sockaddr_in dest_addr = {0};
-    struct hostent *he = gethostbyname(UDP_TARGET_HOST);
-    if (!he || he->h_addr_list == NULL || he->h_addr_list[0] == NULL) {
-        ESP_LOGE(TAG, "DNS lookup failed for %s", UDP_TARGET_HOST);
-        return;
-    }
-    int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
-    if (sock < 0) {
-        ESP_LOGE(TAG, "Unable to create UDP socket");
-        return;
-    }
-    dest_addr.sin_addr.s_addr = ((struct in_addr *)he->h_addr_list[0])->s_addr;
+    struct sockaddr_in dest_addr;
+    memset(&dest_addr, 0, sizeof(dest_addr));
     dest_addr.sin_family = AF_INET;
     dest_addr.sin_port = htons(UDP_TARGET_PORT);
+    // Use inet_addr instead of inet_aton for maximum compatibility
+    dest_addr.sin_addr.s_addr = inet_addr(UDP_TARGET_HOST);
+    // Fix: inet_addr returns INADDR_NONE (0xFFFFFFFF) for invalid IP, but also for 255.255.255.255. For valid IPs, check for 0xFFFFFFFF and 0.
+    if (dest_addr.sin_addr.s_addr == INADDR_NONE || dest_addr.sin_addr.s_addr == 0) {
+        ESP_LOGE(TAG, "Invalid UDP target IP: %s", UDP_TARGET_HOST);
+        return;
+    }
+    int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (sock < 0) {
+        ESP_LOGE(TAG, "Unable to create UDP socket for %s", UDP_TARGET_HOST);
+        return;
+    }
+    // Fix: Set socket option SO_BROADCAST if sending to broadcast address (not needed for 192.168.1.9, but safe for future use)
+    int broadcastEnable = 1;
+    setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &broadcastEnable, sizeof(broadcastEnable));
     int sent = sendto(sock, payload, strlen(payload), 0, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
     if (sent < 0) {
-        ESP_LOGE(TAG, "UDP send failed");
+        ESP_LOGE(TAG, "UDP send failed to %s:%d (errno=%d)", UDP_TARGET_HOST, UDP_TARGET_PORT, errno);
     } else {
-        ESP_LOGI(TAG, "UDP packet sent (%d bytes)", sent);
+        ESP_LOGI(TAG, "UDP packet sent to %s:%d", UDP_TARGET_HOST, UDP_TARGET_PORT);
     }
     close(sock);
 }
@@ -114,6 +119,7 @@ static void wifi_init_sta(void) {
     EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group, WIFI_CONNECTED_BIT | WIFI_FAIL_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
     if (bits & WIFI_CONNECTED_BIT) {
         ESP_LOGI(TAG, "Connected to WiFi: %s", WIFI_SSID);
+        // (Removed local IP/RSSI/channel print here; now printed periodically in sensor_udp_task)
     } else {
         ESP_LOGE(TAG, "WiFi connection failed");
     }
@@ -175,6 +181,7 @@ static void sensor_udp_task(void *pvParameters) {
     esp_read_mac(mac, ESP_MAC_WIFI_STA);
     char mac_id[7];
     snprintf(mac_id, sizeof(mac_id), "%02X%02X%02X", mac[3], mac[4], mac[5]);
+    int print_wifi_info_counter = 0;
     for (;;) {
         ens160_air_quality_data_t air_data;
         uint8_t caqi = 0;
@@ -224,17 +231,21 @@ static void sensor_udp_task(void *pvParameters) {
         snprintf(udp_payload, sizeof(udp_payload),
             "{\"temp\":%.2f,\"hum\":%.2f,\"caqi\":%u,\"tvoc\":%u,\"eco2\":%u,\"id\":\"%s\"}",
             temperature, humidity, caqi, air_data.tvoc, air_data.eco2, mac_id);
-        struct hostent *he_dbg = gethostbyname(UDP_TARGET_HOST);
-        if (he_dbg && he_dbg->h_addr_list && he_dbg->h_addr_list[0]) {
-            char ip_dbg[INET_ADDRSTRLEN];
-            inet_ntop(AF_INET, he_dbg->h_addr_list[0], ip_dbg, sizeof(ip_dbg));
-            ESP_LOGI(TAG, "UDP target resolved: %s (%s):%d", UDP_TARGET_HOST, ip_dbg, UDP_TARGET_PORT);
-        } else {
-            ESP_LOGW(TAG, "Could not resolve UDP target host: %s", UDP_TARGET_HOST);
-        }
-        ESP_LOGD(TAG, "Preparing to send UDP packet...");
         udp_send_sensor_data(udp_payload);
-        ESP_LOGI(TAG, "UDP packet sent and confirmed: %s", udp_payload);
+        // Print WiFi info every 10 seconds
+        if (++print_wifi_info_counter >= 5) { // 5*2s = 10s
+            esp_netif_ip_info_t ip_info;
+            esp_netif_t *netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+            if (netif && esp_netif_get_ip_info(netif, &ip_info) == ESP_OK) {
+                wifi_ap_record_t ap_info;
+                if (esp_wifi_sta_get_ap_info(&ap_info) == ESP_OK) {
+                    ESP_LOGI(TAG, "WiFi: IP %s | RSSI %d dBm | Channel %d", ip4addr_ntoa((const ip4_addr_t *)&ip_info.ip), ap_info.rssi, ap_info.primary);
+                } else {
+                    ESP_LOGI(TAG, "WiFi: IP %s", ip4addr_ntoa((const ip4_addr_t *)&ip_info.ip));
+                }
+            }
+            print_wifi_info_counter = 0;
+        }
         vTaskDelay(pdMS_TO_TICKS(2000));
     }
 }
