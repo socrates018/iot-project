@@ -14,4 +14,5 @@ try:
         print(f"Received message from {addr}: {data.decode('utf-8')}")
 except KeyboardInterrupt:
     print("\nStopped by user.")
+finally:
     sock.close()

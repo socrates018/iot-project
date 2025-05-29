@@ -1,7 +1,7 @@
 import socket
 import time
 
-UDP_IP = "192.168.1.11"
+UDP_IP = "192.168.1.9"
 UDP_PORT = 8080
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
