@@ -38,6 +38,7 @@ def insert_data(db_name, user, password, measurement, value, timestamp):
 # ---------- MQTT Callback ----------
 def on_message(client, userdata, msg):
     try:
+        print(f"📡 Raw MQTT message: {msg.payload.decode()}")
         data = json.loads(msg.payload.decode())
 
         # Περιμένουμε: {"temp":25.4, "timestamp":"2025-05-07T12:54:05.00162557Z", ...}
