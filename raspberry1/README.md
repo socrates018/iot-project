@@ -1,17 +1,15 @@
+((((# NAME RASPBERRY A DEBUG FOLDER  because it is used as debug)))))
 # raspberry1
 
 This directory contains Python projects and examples for Raspberry Pi, focusing on MQTT, simple apps, and project templates.
 
 ## Structure
-- `class_examples/` - Educational Python scripts and exercises
-- `simple-app/` - Example simple application
-- `project/` - Project template or main project code
-- `test-mqtt-publish/` - MQTT publish example
-- `test-mqtt-subscribe/` - MQTT subscribe example
+- `test-mqtt-publish/` - MQTT publish example to test functionality 
+- `test-mqtt-subscribe/` - MQTT subscribe example to test functionality 
 
 # UDP to MQTT Gateway for ESP32 Sensor Nodes
 
-This directory contains scripts and configuration for bridging sensor data from multiple ESP32 devices (sent via UDP) to an MQTT broker, and onward to an InfluxDB database for storage and visualization. The setup is designed for use on a Raspberry Pi or similar Linux system.
+This directory contains scripts and configurations for bridging sensor data from multiple ESP32 devices (sent via UDP) to an MQTT broker, and onward to an InfluxDB database for storage. The setup is designed for use on a Raspberry Pi or similar Linux system.
 
 ## Overview
 
@@ -42,18 +40,6 @@ This approach is scalable, efficient, and easy to integrate with data pipelines 
 ### config.json
 - **Purpose:** (If present) Can be used to store configuration parameters for the gateway or other scripts. Not used by default in `udp_to_mqtt.py`.
 
-### udp_listener_example.py
-- **Purpose:** Example script for listening to UDP packets. Useful for debugging or testing ESP32 UDP output without MQTT or InfluxDB.
-- **Usage:**
-  ```sh
-  python3 udp_listener_example.py
-  ```
-
-### class_examples/
-- **Purpose:** Contains example Python scripts for educational or testing purposes. Not directly related to the UDP-to-MQTT gateway.
-- **Notable files:**
-  - `Exercise1.py`: Example exercise script.
-  - `simple-app/`, `project/`, `test-mqtt-publish/`, `test-mqtt-subscribe/`: Example projects and MQTT test scripts.
 
 ---
 
