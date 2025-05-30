@@ -41,6 +41,10 @@
 #define UDP_TARGET_HOST   "team19pi.ddns.net"//"192.168.1.9"
 #define UDP_TARGET_PORT   8080
 
+// Sensor send interval (in seconds)
+#define SENSOR_SEND_INTERVAL_SEC 10
+#define SENSOR_SEND_INTERVAL_MS (SENSOR_SEND_INTERVAL_SEC * 1000)
+
 // Event group for WiFi connection
 static EventGroupHandle_t s_wifi_event_group;
 #define WIFI_CONNECTED_BIT BIT0
@@ -202,13 +206,14 @@ static void sensor_udp_task(void *pvParameters) {
         ens160_air_quality_data_t air_data;
         uint8_t caqi = 0;
         // Try to get ENS160 data
-        if (ens160_get_measurement(ens160_handle, &air_data) == ESP_OK) {
+        if (ens160_get_measurement(ens160_handle, &air_data) == ESP_OK &&
+            air_data.uba_aqi > 0 && air_data.tvoc > 0 && air_data.eco2 > 0) {
             ens160_aqi_uba_row_t aqi_def = ens160_aqi_index_to_definition(air_data.uba_aqi);
             ESP_LOGI(TAG, "ENS160: CAQI: %d (%s), TVOC: %u ppb, eCO2: %u ppm", air_data.uba_aqi, aqi_def.rating, air_data.tvoc, air_data.eco2);
             caqi = air_data.uba_aqi;
             valid_ens160 = true;
         } else {
-            ESP_LOGW(TAG, "ENS160: Read error");
+            ESP_LOGW(TAG, "ENS160: Read error or invalid data");
             valid_ens160 = false;
             caqi = 0;
         }
@@ -270,7 +275,7 @@ static void sensor_udp_task(void *pvParameters) {
             }
             print_wifi_info_counter = 0;
         }
-        vTaskDelay(pdMS_TO_TICKS(2000));
+        vTaskDelay(pdMS_TO_TICKS(SENSOR_SEND_INTERVAL_SEC * 1000));
     }
 }
 
