@@ -49,8 +49,9 @@ client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id)
 client.username_pw_set(HOSTNAME, MQTT_PASSWORD)
 
 # ---------- InfluxDB insert ----------
-def insert_data(db_name, user, password, measurement, value, timestamp, device_id):
-    line = f"{measurement},id={device_id} value={value} {timestamp}"
+def insert_data(db_name, user, password, device_id, measurement_type, value, timestamp):
+    # device_id as measurement, type as tag
+    line = f"{device_id},type={measurement_type} value={value} {timestamp}"
     response = requests.post(
         f"{INFLUXDB_URL}/write",
         params={"db": db_name},
@@ -73,7 +74,7 @@ def on_message(client, userdata, msg):
                     "value": data[key],
                     "timestamp": data["timestamp"]
                 }
-                insert_data(DB_NAME, HOSTNAME, MQTT_PASSWORD, key, data[key], data["timestamp"], device_id)
+                insert_data(DB_NAME, HOSTNAME, MQTT_PASSWORD, device_id, key, data[key], data["timestamp"])
                 print(f"Saved value {data[key]} for {key} from device {device_id} at {data['timestamp']}")
     except Exception as e:
         print("Error processing message:", e)
