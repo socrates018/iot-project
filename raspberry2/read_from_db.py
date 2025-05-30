@@ -70,10 +70,29 @@ def main():
 
     action = input("Choose action: [1] Export data [2] Delete data (enter 1 or 2): ").strip()
     if action == "2":
-        measurement = input("Enter measurement to delete: ").strip()
+        measurement = input("Enter measurement to delete (default: all): ").strip() or "all"
         condition = input("Enter delete condition (default: time < now()): ").strip() or "time < now()"
-        delete_data(db_name, student_user, student_pass, measurement, condition)
-        print(f"Delete command sent for measurement '{measurement}' with condition '{condition}'.")
+        if measurement == "all":
+            # Get all measurement names
+            all_measurements_json = auth_check.json()
+            measurement_names = []
+            try:
+                results = all_measurements_json.get("results", [])
+                if results and "series" in results[0]:
+                    for entry in results[0]["series"][0]["values"]:
+                        if entry and len(entry) > 0:
+                            measurement_names.append(entry[0])
+            except Exception as e:
+                print("Error extracting measurement names:", e)
+            if not measurement_names:
+                print("No measurements found to delete.")
+                return
+            for m in measurement_names:
+                delete_data(db_name, student_user, student_pass, m, condition)
+                print(f"Delete command sent for measurement '{m}' with condition '{condition}'.")
+        else:
+            delete_data(db_name, student_user, student_pass, measurement, condition)
+            print(f"Delete command sent for measurement '{measurement}' with condition '{condition}'.")
         return
 
     measurement = input("Enter measurement to export (default: all): ").strip() or "all"
