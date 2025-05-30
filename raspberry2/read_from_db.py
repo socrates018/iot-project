@@ -15,7 +15,6 @@ def insert_data(db_name, user, password, measurement, value, timestamp=None):
                             data=line,
                             auth=HTTPBasicAuth(user, password))
     if response.status_code == 401:
-        print("Authentication failed: Wrong username or password for InfluxDB.")
         return None
     print("Insert data:", response.ok)
     return response
@@ -26,12 +25,11 @@ def query_data(db_name, user, password, measurement):
                           params={"db": db_name, "q": query},
                           auth=HTTPBasicAuth(user, password))
     if response.status_code == 401:
-        print("Authentication failed: Wrong username or password for InfluxDB.")
         return None
     print("Query result:", response.text)
     return response
 
-def show_topics(db_name, user, password):
+def show_topics(db_name, user, password, suppress_output=False):
     query = "SHOW MEASUREMENTS"
     response = requests.get(
         f"{INFLUXDB_URL}/query",
@@ -39,9 +37,9 @@ def show_topics(db_name, user, password):
         auth=HTTPBasicAuth(user, password)
     )
     if response.status_code == 401:
-        print("Authentication failed: Wrong username or password for InfluxDB.")
         return None
-    print("Topics:", response.text)
+    if not suppress_output:
+        print("Topics:", response.text)
     return response
 
 def delete_data(db_name, user, password, measurement, condition="time < now()"):
@@ -50,7 +48,6 @@ def delete_data(db_name, user, password, measurement, condition="time < now()"):
                           params={"db": db_name, "q": query},
                           auth=HTTPBasicAuth(user, password))
     if response.status_code == 401:
-        print("Authentication failed: Wrong username or password for InfluxDB.")
         return None
     print("Delete data:", response.text)
 
@@ -59,10 +56,10 @@ def main():
     student_pass = getpass.getpass("Enter InfluxDB password for team19: ")
     db_name = "team19_db"
 
-    # Check password once right after entering it
-    auth_check = show_topics(db_name, student_user, student_pass)
+    # Check password once right after entering it, without printing topics
+    auth_check = show_topics(db_name, student_user, student_pass, suppress_output=True)
     if auth_check is None:
-        print("Exiting due to authentication failure.")
+        print("Authentication failed: Wrong username or password for InfluxDB. Exiting.")
         return
 
     measurement = input("Enter measurement to export (default: all): ").strip() or "all"
