@@ -7,76 +7,79 @@ ADMIN_USER = "username"
 ADMIN_PASS = "password"  # No longer hardcoded
 
 def insert_data(db_name, user, password, measurement, value, timestamp=None):
-  line = f"{measurement} value={value}"
-  if timestamp:
-    line += f" {timestamp}"
-  response = requests.post(f"{INFLUXDB_URL}/write", 
+    line = f"{measurement} value={value}"
+    if timestamp:
+        line += f" {timestamp}"
+    response = requests.post(f"{INFLUXDB_URL}/write", 
                             params={"db": db_name},
                             data=line,
                             auth=HTTPBasicAuth(user, password))
-  print("Insert data:", response.ok)
+    print("Insert data:", response.ok)
 
 def query_data(db_name, user, password, measurement):
-  query = f"SELECT * FROM {measurement}"
-  response = requests.get(f"{INFLUXDB_URL}/query",
+    query = f"SELECT * FROM {measurement}"
+    response = requests.get(f"{INFLUXDB_URL}/query",
                           params={"db": db_name, "q": query},
                           auth=HTTPBasicAuth(user, password))
-  print("Query result:", response.text)
-  return response
+    print("Query result:", response.text)
+    return response
 
-def show_measurements(db_name, user, password):
+def show_topics(db_name, user, password):
     query = "SHOW MEASUREMENTS"
     response = requests.get(
         f"{INFLUXDB_URL}/query",
         params={"db": db_name, "q": query},
         auth=HTTPBasicAuth(user, password)
     )
-    print("Measurements:", response.text)
+    print("Topics:", response.text)
     return response
 
 def delete_data(db_name, user, password, condition="time < now()"):
-  query = f"DELETE FROM {measurement} WHERE {condition}"
-  response = requests.get(f"{INFLUXDB_URL}/query",
+    query = f"DELETE FROM {measurement} WHERE {condition}"
+    response = requests.get(f"{INFLUXDB_URL}/query",
                           params={"db": db_name, "q": query},
                           auth=HTTPBasicAuth(user, password))
-  print("Delete data:", response.text)
+    print("Delete data:", response.text)
 
-student_user = "team19"
-student_pass = "***REMOVED***"
-db_name = "team19_db"
-measurement = "airTemperature"  # Example measurement
+def main():
+    student_user = "team19"
+    student_pass = getpass.getpass("Enter InfluxDB password for team19: ")
+    db_name = "team19_db"
+    measurement = input("Enter measurement to export (default: all): ").strip() or "all"
 
-# Query all data from measurement (specific category e.g. air_temperature)
-response = query_data(db_name, student_user, student_pass, measurement)
-# Query all data 
-all_data = show_measurements(db_name, student_user, student_pass)
-
-# Check if data exists and print confirmation
-try:
-    data = response.json()
-    results = data.get("results", [])
-    if results and "series" in results[0]:
-        print("✅ Data found in the database.")
-        # Save all data to a local file
-        with open(f"{measurement}.txt", "w", encoding="utf-8") as f:
-            import json
-            json.dump(results[0]["series"], f, indent=2)
-        print(f"{measurement} exported to 'exported_data.txt'.")
+    if measurement == "all":
+        response = None
     else:
-        print(f"No {measurement} found in the database.")
-except Exception as e:
-    print("❌ Error processing response:", e)
+        response = query_data(db_name, student_user, student_pass, measurement)
+    all_data = show_topics(db_name, student_user, student_pass)
 
-# Export measurements to a second file
-try:
-    all_measurements = all_data.json()
-    measurements_results = all_measurements.get("results", [])
-    if measurements_results and "series" in measurements_results[0]:
-        with open("all_data.txt", "w", encoding="utf-8") as f:
-            import json
-            json.dump(measurements_results[0]["series"], f, indent=2)
-        print("📁 All measurements exported to 'all_data.txt'.")
-    else:
-        print("⚠️ No measurements found in the database.")
-except Exception as e:
-    print("❌ Error processing measurements response:", e)
+    if response:
+        try:
+            data = response.json()
+            results = data.get("results", [])
+            if results and "series" in results[0]:
+                print("Data found in the database.")
+                with open(f"{measurement}.txt", "w", encoding="utf-8") as f:
+                    import json
+                    json.dump(results[0]["series"], f, indent=2)
+                print(f"{measurement} exported to '{measurement}.txt'.")
+            else:
+                print(f"No {measurement} found in the database.")
+        except Exception as e:
+            print("Error processing response:", e)
+
+    try:
+        all_measurements = all_data.json()
+        measurements_results = all_measurements.get("results", [])
+        if measurements_results and "series" in measurements_results[0]:
+            with open("all_data.txt", "w", encoding="utf-8") as f:
+                import json
+                json.dump(measurements_results[0]["series"], f, indent=2)
+            print("All measurements exported to 'all_data.txt'.")
+        else:
+            print("No measurements found in the database.")
+    except Exception as e:
+        print("Error processing measurements response:", e)
+
+if __name__ == "__main__":
+    main()
