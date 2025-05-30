@@ -38,7 +38,7 @@
 #define NUM_PIXELS    1
 
 // UDP configuration
-#define UDP_TARGET_HOST   "192.168.1.9"
+#define UDP_TARGET_HOST   "team19pi.ddns.net"//"192.168.1.9"
 #define UDP_TARGET_PORT   8080
 
 // Event group for WiFi connection
@@ -63,7 +63,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
     }
 }
 
-// Sends sensor data as a UDP packet to the configured host and port (cleaned up)
+// Sends sensor data as a UDP packet to the configured host and port (now supports hostname or IP)
 static void udp_send_sensor_data(const char *payload) {
     // Print diagnostics before sending
     esp_netif_ip_info_t ip_info;
@@ -80,10 +80,18 @@ static void udp_send_sensor_data(const char *payload) {
     memset(&dest_addr, 0, sizeof(dest_addr));
     dest_addr.sin_family = AF_INET;
     dest_addr.sin_port = htons(UDP_TARGET_PORT);
+
+    // Try to parse as IP, if fails, resolve as hostname
     int pton_result = inet_pton(AF_INET, UDP_TARGET_HOST, &dest_addr.sin_addr);
     if (pton_result != 1) {
-        ESP_LOGE(TAG, "Invalid UDP target IP (inet_pton failed): %s", UDP_TARGET_HOST);
-        return;
+        struct hostent *he = gethostbyname(UDP_TARGET_HOST);
+        if (he && he->h_addrtype == AF_INET && he->h_length == 4) {
+            memcpy(&dest_addr.sin_addr, he->h_addr, he->h_length);
+            ESP_LOGI(TAG, "Resolved hostname %s to IP %s", UDP_TARGET_HOST, inet_ntoa(dest_addr.sin_addr));
+        } else {
+            ESP_LOGE(TAG, "Failed to resolve UDP target host: %s", UDP_TARGET_HOST);
+            return;
+        }
     }
     int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (sock < 0) {
