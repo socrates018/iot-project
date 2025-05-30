@@ -52,6 +52,10 @@ static EventGroupHandle_t s_wifi_event_group;
 
 static const char *TAG = "SENSOR_UDP";
 
+// Optionally override the last 3 bytes of the MAC address for device ID
+#define USE_VIRTUAL_MAC 1
+#define VIRTUAL_MAC_ID "A1B2C3" // Set to desired 6-char hex string if USE_VIRTUAL_MAC is 1
+
 // WiFi event handler: Handles WiFi and IP events for connection management
 static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
@@ -195,10 +199,15 @@ static void sensor_udp_task(void *pvParameters) {
     }
     ESP_LOGI(TAG, "AHT20 sensor initialized");
     // Get MAC address (last 3 bytes for ID)
+    char mac_id[7];
+#if USE_VIRTUAL_MAC
+    strncpy(mac_id, VIRTUAL_MAC_ID, sizeof(mac_id));
+    mac_id[6] = '\0';
+#else
     uint8_t mac[6];
     esp_read_mac(mac, ESP_MAC_WIFI_STA);
-    char mac_id[7];
     snprintf(mac_id, sizeof(mac_id), "%02X%02X%02X", mac[3], mac[4], mac[5]);
+#endif
     int print_wifi_info_counter = 0;
     float temperature = 0.0f, humidity = 0.0f;
     bool valid_aht20 = false, valid_ens160 = false;
