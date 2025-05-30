@@ -196,15 +196,20 @@ static void sensor_udp_task(void *pvParameters) {
     char mac_id[7];
     snprintf(mac_id, sizeof(mac_id), "%02X%02X%02X", mac[3], mac[4], mac[5]);
     int print_wifi_info_counter = 0;
+    float temperature = 0.0f, humidity = 0.0f;
+    bool valid_aht20 = false, valid_ens160 = false;
     for (;;) {
         ens160_air_quality_data_t air_data;
         uint8_t caqi = 0;
+        // Try to get ENS160 data
         if (ens160_get_measurement(ens160_handle, &air_data) == ESP_OK) {
             ens160_aqi_uba_row_t aqi_def = ens160_aqi_index_to_definition(air_data.uba_aqi);
             ESP_LOGI(TAG, "ENS160: CAQI: %d (%s), TVOC: %u ppb, eCO2: %u ppm", air_data.uba_aqi, aqi_def.rating, air_data.tvoc, air_data.eco2);
             caqi = air_data.uba_aqi;
+            valid_ens160 = true;
         } else {
             ESP_LOGW(TAG, "ENS160: Read error");
+            valid_ens160 = false;
             caqi = 0;
         }
         uint8_t r = 0, g = 0, b = 0;
@@ -219,14 +224,16 @@ static void sensor_udp_task(void *pvParameters) {
         led_strip_clear(strip);
         led_strip_set_pixel(strip, 0, r, g, b);
         led_strip_refresh(strip);
-        float temperature = 0.0f, humidity = 0.0f;
+        // Try to get AHT20 data
         if (aht20_read_float(aht20_handle, &temperature, &humidity) == ESP_OK) {
             ESP_LOGI(TAG, "AHT20: Temperature: %.2f C, Humidity: %.2f %%", temperature, humidity);
             if (ens160_set_compensation_factors(ens160_handle, temperature, humidity) != ESP_OK) {
                 ESP_LOGW(TAG, "ENS160: Failed to set compensation factors");
             }
+            valid_aht20 = true;
         } else {
             ESP_LOGW(TAG, "AHT20: Read error");
+            valid_aht20 = false;
         }
         /*
         Send sensor data as a JSON-formatted UDP packet.
@@ -241,11 +248,14 @@ static void sensor_udp_task(void *pvParameters) {
           {"temp":23.45,"hum":56.78,"caqi":2,"tvoc":123,"eco2":456,"id":"AABBCC"}
         This format is simple, compact, and easy to parse on the server side.
         */
-        char udp_payload[128];
-        snprintf(udp_payload, sizeof(udp_payload),
-            "{\"temp\":%.2f,\"hum\":%.2f,\"caqi\":%u,\"tvoc\":%u,\"eco2\":%u,\"id\":\"%s\"}",
-            temperature, humidity, caqi, air_data.tvoc, air_data.eco2, mac_id);
-        udp_send_sensor_data(udp_payload);
+        // Only send if both are valid
+        if (valid_aht20 && valid_ens160) {
+            char udp_payload[128];
+            snprintf(udp_payload, sizeof(udp_payload),
+                "{\"temp\":%.2f,\"hum\":%.2f,\"caqi\":%u,\"tvoc\":%u,\"eco2\":%u,\"id\":\"%s\"}",
+                temperature, humidity, caqi, air_data.tvoc, air_data.eco2, mac_id);
+            udp_send_sensor_data(udp_payload);
+        }
         // Print WiFi info every 10 seconds
         if (++print_wifi_info_counter >= 5) { // 5*2s = 10s
             esp_netif_ip_info_t ip_info;
