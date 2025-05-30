@@ -48,38 +48,71 @@ def main():
     measurement = input("Enter measurement to export (default: all): ").strip() or "all"
 
     if measurement == "all":
-        response = None
-    else:
-        response = query_data(db_name, student_user, student_pass, measurement)
-    all_data = show_topics(db_name, student_user, student_pass)
-
-    if response:
+        # Get all measurement names
+        all_measurements_resp = show_topics(db_name, student_user, student_pass)
+        all_measurements_json = all_measurements_resp.json()
+        measurement_names = []
         try:
-            data = response.json()
-            results = data.get("results", [])
+            results = all_measurements_json.get("results", [])
             if results and "series" in results[0]:
-                print("Data found in the database.")
-                with open(f"{measurement}.txt", "w", encoding="utf-8") as f:
-                    import json
-                    json.dump(results[0]["series"], f, indent=2)
-                print(f"{measurement} exported to '{measurement}.txt'.")
-            else:
-                print(f"No {measurement} found in the database.")
+                for entry in results[0]["series"][0]["values"]:
+                    if entry and len(entry) > 0:
+                        measurement_names.append(entry[0])
         except Exception as e:
-            print("Error processing response:", e)
-
-    try:
-        all_measurements = all_data.json()
-        measurements_results = all_measurements.get("results", [])
-        if measurements_results and "series" in measurements_results[0]:
-            with open("all_data.txt", "w", encoding="utf-8") as f:
+            print("Error extracting measurement names:", e)
+        # Query and collect all measurements
+        all_data = {}
+        for m in measurement_names:
+            try:
+                response = query_data(db_name, student_user, student_pass, m)
+                data = response.json()
+                results = data.get("results", [])
+                if results and "series" in results[0]:
+                    print(f"Data found for {m}.")
+                    all_data[m] = results[0]["series"]
+                else:
+                    print(f"No data found for {m}.")
+            except Exception as e:
+                print(f"Error processing {m}: {e}")
+        # Save all measurements to a single file
+        if all_data:
+            with open("all_measurements.txt", "w", encoding="utf-8") as f:
                 import json
-                json.dump(measurements_results[0]["series"], f, indent=2)
-            print("All measurements exported to 'all_data.txt'.")
+                json.dump(all_data, f, indent=2)
+            print("All measurements exported to 'all_measurements.txt'.")
         else:
             print("No measurements found in the database.")
-    except Exception as e:
-        print("Error processing measurements response:", e)
+    else:
+        response = query_data(db_name, student_user, student_pass, measurement)
+        all_data = show_topics(db_name, student_user, student_pass)
+
+        if response:
+            try:
+                data = response.json()
+                results = data.get("results", [])
+                if results and "series" in results[0]:
+                    print("Data found in the database.")
+                    with open(f"{measurement}.txt", "w", encoding="utf-8") as f:
+                        import json
+                        json.dump(results[0]["series"], f, indent=2)
+                    print(f"{measurement} exported to '{measurement}.txt'.")
+                else:
+                    print(f"No {measurement} found in the database.")
+            except Exception as e:
+                print("Error processing response:", e)
+
+        try:
+            all_measurements = all_data.json()
+            measurements_results = all_measurements.get("results", [])
+            if measurements_results and "series" in measurements_results[0]:
+                with open("all_data.txt", "w", encoding="utf-8") as f:
+                    import json
+                    json.dump(measurements_results[0]["series"], f, indent=2)
+                print("All measurements exported to 'all_data.txt'.")
+            else:
+                print("No measurements found in the database.")
+        except Exception as e:
+            print("Error processing measurements response:", e)
 
 if __name__ == "__main__":
     main()

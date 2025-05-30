@@ -138,7 +138,26 @@ def udp_receive_loop(sock, udp_queue):
             json_data = json.loads(message)
             device_id = json_data.get("id", None)
             if device_id:
-                json_data["timestamp"] = int(time.time())
+                # If timestamp is present and looks like a string, convert to int (unix time)
+                if "timestamp" in json_data:
+                    try:
+                        # Try to parse as float or int, or as ISO string
+                        ts = json_data["timestamp"]
+                        if isinstance(ts, str):
+                            if ts.isdigit():
+                                json_data["timestamp"] = int(ts)
+                            else:
+                                # Try to parse ISO string to unix time
+                                import dateutil.parser, calendar
+                                dt = dateutil.parser.isoparse(ts)
+                                json_data["timestamp"] = int(dt.timestamp())
+                        else:
+                            json_data["timestamp"] = int(float(ts))
+                    except Exception as e:
+                        print(f"[WARN] Could not parse timestamp: {json_data['timestamp']}, error: {e}")
+                        json_data["timestamp"] = int(time.time())
+                else:
+                    json_data["timestamp"] = int(time.time())
                 latest_readings[device_id] = json_data
                 print(f"Updated reading for {device_id}: {json_data}")
                 udp_queue.put((device_id, json_data))
