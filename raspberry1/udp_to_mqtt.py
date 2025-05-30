@@ -172,7 +172,35 @@ def udp_receive_loop(sock, udp_queue):
         except Exception as e:
             print(f"Error processing message: {e}")
 
+def check_mqtt_password(broker, port, username, password):
+    """
+    Returns True if MQTT credentials are correct (can connect), False otherwise.
+    """
+    import paho.mqtt.client as mqtt
+    result = [False]
+    def on_connect(client, userdata, flags, rc, properties=None):
+        if rc == 0:
+            result[0] = True
+        client.disconnect()
+    client = mqtt.Client()
+    client.username_pw_set(username, password)
+    client.on_connect = on_connect
+    try:
+        client.connect(broker, port, 60)
+        client.loop_start()
+        import time
+        time.sleep(1)  # Wait for connect callback
+        client.loop_stop()
+    except Exception:
+        return False
+    return result[0]
+
 def main():
+    # Check MQTT password before starting anything else
+    if not check_mqtt_password(MQTT_BROKER, MQTT_PORT, MQTT_USERNAME, MQTT_PASSWORD):
+        print("Wrong MQTT password. Exiting.")
+        return
+
     # Initialize UDP socket and print info before anything else
     UDP_IP = get_local_ip()  # Automatically detect local WiFi IP
     print(f"[INFO] UDP listener starting on {UDP_IP}:{UDP_PORT}...")

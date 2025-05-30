@@ -15,6 +15,23 @@ MQTT_PORT = 1883
 HOSTNAME = "team19"
 DB_NAME = "team19_db"
 
+
+def check_influxdb_password(db_name, user, password, influxdb_url):
+    """
+    Returns True if the credentials are correct, False otherwise.
+    """
+    import requests
+    from requests.auth import HTTPBasicAuth
+    query = "SHOW MEASUREMENTS"
+    response = requests.get(
+        f"{influxdb_url}/query",
+        params={"db": db_name, "q": query},
+        auth=HTTPBasicAuth(user, password)
+    )
+    return response.status_code != 401
+
+
+
 # Store latest values per device id
 latest_values = {}
 
@@ -59,6 +76,12 @@ def on_message(client, userdata, msg):
 
 # ---------- Main loop ----------
 def main():
+    # Check InfluxDB password before starting MQTT loop
+    INFLUXDB_PASSWORD = getpass.getpass("Enter InfluxDB password: ")
+    if not check_influxdb_password(DB_NAME, HOSTNAME, INFLUXDB_PASSWORD, INFLUXDB_URL):
+        print("Wrong InfluxDB password. Exiting.")
+        return
+
     try:
         client.on_message = on_message
         client.connect(MQTT_BROKER, MQTT_PORT)
