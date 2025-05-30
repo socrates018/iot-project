@@ -62,6 +62,14 @@ def main():
         print("Authentication failed: Wrong username or password for InfluxDB. Exiting.")
         return
 
+    action = input("Choose action: [1] Export data [2] Delete data (enter 1 or 2): ").strip()
+    if action == "2":
+        measurement = input("Enter measurement to delete: ").strip()
+        condition = input("Enter delete condition (default: time < now()): ").strip() or "time < now()"
+        delete_data(db_name, student_user, student_pass, measurement, condition)
+        print(f"Delete command sent for measurement '{measurement}' with condition '{condition}'.")
+        return
+
     measurement = input("Enter measurement to export (default: all): ").strip() or "all"
 
     if measurement == "all":
