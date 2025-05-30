@@ -26,13 +26,17 @@ def insert_data(db_name, user, password, measurement, value, timestamp=None):
     return response
 
 def query_data(db_name, user, password, measurement):
-    query = f"SELECT * FROM {measurement}"
+    # Add quotes for measurement names that are not purely alphabetic (e.g., contain numbers)
+    if not measurement.isalpha():
+        measurement_quoted = f'"{measurement}"'
+    else:
+        measurement_quoted = measurement
+    query = f"SELECT * FROM {measurement_quoted}"
     response = requests.get(f"{INFLUXDB_URL}/query",
                           params={"db": db_name, "q": query},
                           auth=HTTPBasicAuth(user, password))
     if response.status_code == 401:
         return None
-    print("Query result:", response.text)
     return response
 
 def show_topics(db_name, user, password):
