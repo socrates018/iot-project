@@ -147,20 +147,21 @@ def udp_receive_loop(sock, udp_queue):
                             if ts.isdigit():
                                 ts_sec = int(ts)
                             else:
-                                # Try to parse ISO string to unix time
                                 import dateutil.parser
                                 dt = dateutil.parser.isoparse(ts)
                                 ts_sec = int(dt.timestamp())
                         else:
                             ts_sec = int(float(ts))
+                        # Add 3 hours (in seconds)
+                        ts_sec += 3 * 3600
                         # Convert seconds to nanoseconds for InfluxDB
                         ts_ns = int(ts_sec * 1_000_000_000)
                         json_data["timestamp"] = ts_ns
                     except Exception as e:
                         print(f"[WARN] Could not parse timestamp: {json_data.get('timestamp')}, error: {e}")
-                        json_data["timestamp"] = int(time.time() * 1_000_000_000)
+                        json_data["timestamp"] = int((time.time() + 3 * 3600) * 1_000_000_000)
                 else:
-                    json_data["timestamp"] = int(time.time() * 1_000_000_000)
+                    json_data["timestamp"] = int((time.time() + 3 * 3600) * 1_000_000_000)
                 latest_readings[device_id] = json_data
                 print(f"Updated reading for {device_id}: {json_data}")
                 udp_queue.put((device_id, json_data))
