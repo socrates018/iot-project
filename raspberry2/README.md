@@ -1,10 +1,10 @@
 # raspberry2
 
-This directory contains Python scripts for Raspberry Pi, focusing on MQTT to InfluxDB integration and database reading utilities.
+This directory contains Python scripts for Raspberry Pi, focusing on MQTT to InfluxDB integration, database reading utilities and hosting the webserver where all the measurements taken from the ESP32-c3 modules (temperature, humidity, TVOC, CAQI, eCO2) will be monitored and graphed. 
 
 ## Structure
 - `mqtt_to_influx.py` - Publishes MQTT data to InfluxDB
-- `read_from_db.py` - Reads and exports data from the InfluxDB database. Prompts for password and measurement/topic to export.
+- `read_from_db.py` - Reads and exports data from the InfluxDB database to 2 files. Prompts for Database password and measurement/topic to export.
 - `webserver/` - (Optional) Web server utilities for data visualization or API endpoints.
 
 ## Requirements
