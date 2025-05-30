@@ -58,15 +58,18 @@ def main():
     student_user = "team19"
     student_pass = getpass.getpass("Enter InfluxDB password for team19: ")
     db_name = "team19_db"
+
+    # Check password once right after entering it
+    auth_check = show_topics(db_name, student_user, student_pass)
+    if auth_check is None:
+        print("Exiting due to authentication failure.")
+        return
+
     measurement = input("Enter measurement to export (default: all): ").strip() or "all"
 
     if measurement == "all":
         # Get all measurement names
-        all_measurements_resp = show_topics(db_name, student_user, student_pass)
-        if all_measurements_resp is None:
-            print("Exiting due to authentication failure.")
-            return
-        all_measurements_json = all_measurements_resp.json()
+        all_measurements_json = auth_check.json()
         measurement_names = []
         try:
             results = all_measurements_json.get("results", [])
@@ -81,9 +84,6 @@ def main():
         for m in measurement_names:
             try:
                 response = query_data(db_name, student_user, student_pass, m)
-                if response is None:
-                    print(f"Skipping {m} due to authentication failure.")
-                    continue
                 data = response.json()
                 results = data.get("results", [])
                 if results and "series" in results[0]:
@@ -103,7 +103,7 @@ def main():
             print("No measurements found in the database.")
     else:
         response = query_data(db_name, student_user, student_pass, measurement)
-        all_data = show_topics(db_name, student_user, student_pass)
+        all_data = auth_check
 
         if response:
             try:
@@ -119,14 +119,8 @@ def main():
                     print(f"No {measurement} found in the database.")
             except Exception as e:
                 print("Error processing response:", e)
-        elif response is None:
-            print("Exiting due to authentication failure.")
-            return
 
         try:
-            if all_data is None:
-                print("Exiting due to authentication failure.")
-                return
             all_measurements = all_data.json()
             measurements_results = all_measurements.get("results", [])
             if measurements_results and "series" in measurements_results[0]:
