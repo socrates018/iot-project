@@ -2,7 +2,13 @@ import requests
 from requests.auth import HTTPBasicAuth
 import getpass
 
-INFLUXDB_URL = "http://194.177.207.38:8086"  # Private IP: 10.64.44.156:8086
+# Define the InfluxDB IP and URL here
+
+# InfluxDB IPs:
+# Public: 194.177.207.38
+# Local: 10.64.44.156
+INFLUXDB_IP = "194.177.207.38"
+INFLUXDB_URL = f"http://{INFLUXDB_IP}:8086"
 ADMIN_USER = "username"
 ADMIN_PASS = "password"  # No longer hardcoded
 
