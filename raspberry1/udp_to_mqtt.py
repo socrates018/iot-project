@@ -141,23 +141,26 @@ def udp_receive_loop(sock, udp_queue):
                 # If timestamp is present and looks like a string, convert to int (unix time)
                 if "timestamp" in json_data:
                     try:
-                        # Try to parse as float or int, or as ISO string
                         ts = json_data["timestamp"]
+                        # Convert to float first, then to int seconds
                         if isinstance(ts, str):
                             if ts.isdigit():
-                                json_data["timestamp"] = int(ts)
+                                ts_sec = int(ts)
                             else:
                                 # Try to parse ISO string to unix time
-                                import dateutil.parser, calendar
+                                import dateutil.parser
                                 dt = dateutil.parser.isoparse(ts)
-                                json_data["timestamp"] = int(dt.timestamp())
+                                ts_sec = int(dt.timestamp())
                         else:
-                            json_data["timestamp"] = int(float(ts))
+                            ts_sec = int(float(ts))
+                        # Convert seconds to nanoseconds for InfluxDB
+                        ts_ns = int(ts_sec * 1_000_000_000)
+                        json_data["timestamp"] = ts_ns
                     except Exception as e:
-                        print(f"[WARN] Could not parse timestamp: {json_data['timestamp']}, error: {e}")
-                        json_data["timestamp"] = int(time.time())
+                        print(f"[WARN] Could not parse timestamp: {json_data.get('timestamp')}, error: {e}")
+                        json_data["timestamp"] = int(time.time() * 1_000_000_000)
                 else:
-                    json_data["timestamp"] = int(time.time())
+                    json_data["timestamp"] = int(time.time() * 1_000_000_000)
                 latest_readings[device_id] = json_data
                 print(f"Updated reading for {device_id}: {json_data}")
                 udp_queue.put((device_id, json_data))
