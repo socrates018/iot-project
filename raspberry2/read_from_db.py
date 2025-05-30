@@ -14,13 +14,20 @@ def insert_data(db_name, user, password, measurement, value, timestamp=None):
                             params={"db": db_name},
                             data=line,
                             auth=HTTPBasicAuth(user, password))
+    if response.status_code == 401:
+        print("Authentication failed: Wrong username or password for InfluxDB.")
+        return None
     print("Insert data:", response.ok)
+    return response
 
 def query_data(db_name, user, password, measurement):
     query = f"SELECT * FROM {measurement}"
     response = requests.get(f"{INFLUXDB_URL}/query",
                           params={"db": db_name, "q": query},
                           auth=HTTPBasicAuth(user, password))
+    if response.status_code == 401:
+        print("Authentication failed: Wrong username or password for InfluxDB.")
+        return None
     print("Query result:", response.text)
     return response
 
@@ -31,14 +38,20 @@ def show_topics(db_name, user, password):
         params={"db": db_name, "q": query},
         auth=HTTPBasicAuth(user, password)
     )
+    if response.status_code == 401:
+        print("Authentication failed: Wrong username or password for InfluxDB.")
+        return None
     print("Topics:", response.text)
     return response
 
-def delete_data(db_name, user, password, condition="time < now()"):
+def delete_data(db_name, user, password, measurement, condition="time < now()"):
     query = f"DELETE FROM {measurement} WHERE {condition}"
     response = requests.get(f"{INFLUXDB_URL}/query",
                           params={"db": db_name, "q": query},
                           auth=HTTPBasicAuth(user, password))
+    if response.status_code == 401:
+        print("Authentication failed: Wrong username or password for InfluxDB.")
+        return None
     print("Delete data:", response.text)
 
 def main():
@@ -50,6 +63,9 @@ def main():
     if measurement == "all":
         # Get all measurement names
         all_measurements_resp = show_topics(db_name, student_user, student_pass)
+        if all_measurements_resp is None:
+            print("Exiting due to authentication failure.")
+            return
         all_measurements_json = all_measurements_resp.json()
         measurement_names = []
         try:
@@ -65,6 +81,9 @@ def main():
         for m in measurement_names:
             try:
                 response = query_data(db_name, student_user, student_pass, m)
+                if response is None:
+                    print(f"Skipping {m} due to authentication failure.")
+                    continue
                 data = response.json()
                 results = data.get("results", [])
                 if results and "series" in results[0]:
@@ -100,8 +119,14 @@ def main():
                     print(f"No {measurement} found in the database.")
             except Exception as e:
                 print("Error processing response:", e)
+        elif response is None:
+            print("Exiting due to authentication failure.")
+            return
 
         try:
+            if all_data is None:
+                print("Exiting due to authentication failure.")
+                return
             all_measurements = all_data.json()
             measurements_results = all_measurements.get("results", [])
             if measurements_results and "series" in measurements_results[0]:
