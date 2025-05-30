@@ -105,10 +105,10 @@ def main():
             all_measurements = all_data.json()
             measurements_results = all_measurements.get("results", [])
             if measurements_results and "series" in measurements_results[0]:
-                with open("all_data.txt", "w", encoding="utf-8") as f:
+                with open("show_topics.txt", "w", encoding="utf-8") as f:
                     import json
                     json.dump(measurements_results[0]["series"], f, indent=2)
-                print("All measurements exported to 'all_data.txt'.")
+                print("All measurements exported to 'show_topics.txt'.")
             else:
                 print("No measurements found in the database.")
         except Exception as e:
