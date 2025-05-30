@@ -18,6 +18,7 @@ venv/
 
 # Ignore VSCode and IDE settings
 .vscode/
+.vscode/*
 .idea/
 *.code-workspace
 
