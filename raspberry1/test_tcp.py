@@ -1,6 +1,21 @@
 import socket
 import os
 
+def get_port_for_local_ip():
+    hostname = socket.gethostname()
+    local_ip = socket.gethostbyname(hostname)
+    if local_ip == '192.168.1.3':
+        port = 3030
+    elif local_ip == '192.168.1.9':
+        port = 65432
+    elif local_ip == '192.168.1.6':
+        port = 65431
+    else:
+        print(f"[DEBUG] Unknown IP {local_ip}, using default port 65432")
+        port = 65432
+    print(f"[DEBUG] Detected local IP {local_ip}, using port {port}")
+    return port, local_ip
+
 # --- TCP Client Example ---
 def tcp_client():
     # Prompt user for server selection
@@ -19,8 +34,10 @@ def tcp_client():
     else:
         print("Invalid choice.")
         return
+    print(f"[DEBUG] Connecting to TCP server at {host}:{port}")
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.connect((host, port))
+        print(f"[DEBUG] Connected to TCP server at {host}:{port}")
         message = 'Hello, TCP server!'
         print(f'Sending: {message}')
         s.sendall(message.encode())
@@ -29,8 +46,9 @@ def tcp_client():
 
 # --- TCP Server Example ---
 def tcp_server():
+    PORT, local_ip = get_port_for_local_ip()
     HOST = '0.0.0.0'
-    PORT = 65432
+    print(f"[DEBUG] TCP server detected local IP {local_ip}, using port {PORT}")
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((HOST, PORT))
         s.listen()
@@ -63,17 +81,20 @@ def udp_client():
     else:
         print("Invalid choice.")
         return
+    print(f"[DEBUG] Sending to UDP server at {host}:{port}")
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
         message = 'Hello, UDP server!'
         print(f'Sending: {message}')
         s.sendto(message.encode(), (host, port))
+        print(f"[DEBUG] Sent to UDP server at {host}:{port}")
         data, addr = s.recvfrom(1024)
         print(f'Received from {addr}: {data.decode()}')
 
 # --- UDP Server Example ---
 def udp_server():
+    PORT, local_ip = get_port_for_local_ip()
     HOST = '0.0.0.0'
-    PORT = 65432
+    print(f"[DEBUG] UDP server detected local IP {local_ip}, using port {PORT}")
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
         s.bind((HOST, PORT))
         print(f'UDP server listening on {HOST}:{PORT}')
