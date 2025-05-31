@@ -39,11 +39,24 @@ import socket
 import json
 import paho.mqtt.client as mqtt
 import time
-import getpass
+import os
 import threading
 import queue
 
-MQTT_PASSWORD = getpass.getpass("Enter MQTT password: ")
+# ---------- Load or prompt for password ----------
+ENV_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
+MQTT_PASSWORD = None
+if os.path.exists(ENV_PATH):
+    with open(ENV_PATH, 'r') as f:
+        for line in f:
+            if line.startswith('MQTT_PASSWORD='):
+                MQTT_PASSWORD = line.strip().split('=', 1)[1]
+                break
+if not MQTT_PASSWORD:
+    import getpass
+    MQTT_PASSWORD = getpass.getpass("Enter MQTT password: ")
+    with open(ENV_PATH, 'w') as f:
+        f.write(f"MQTT_PASSWORD={MQTT_PASSWORD}\n")
 
 # Helper function to get the local WiFi IP address
 def get_local_ip():
