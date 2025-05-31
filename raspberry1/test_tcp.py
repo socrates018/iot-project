@@ -54,6 +54,7 @@ def tcp_server():
         s.listen()
         print(f'TCP server listening on {HOST}:{PORT}')
         conn, addr = s.accept()
+        print(f"[DEBUG] Client connected from {addr}")
         with conn:
             print(f'Connected by {addr}')
             data = conn.recv(1024)
@@ -99,6 +100,7 @@ def udp_server():
         s.bind((HOST, PORT))
         print(f'UDP server listening on {HOST}:{PORT}')
         data, addr = s.recvfrom(1024)
+        print(f"[DEBUG] Datagram received from {addr}")
         print(f'Received from {addr}: {data.decode()}')
         # Generate random 70-byte message
         response = os.urandom(70)
