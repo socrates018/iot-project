@@ -1,6 +1,7 @@
 import requests
 from requests.auth import HTTPBasicAuth
 import getpass
+import os
 
 # Define the InfluxDB IP and URL here
 
@@ -11,6 +12,20 @@ INFLUXDB_IP = "194.177.207.38"
 INFLUXDB_URL = f"http://{INFLUXDB_IP}:8086"
 ADMIN_USER = "username"
 ADMIN_PASS = "password"  # No longer hardcoded
+
+# ---------- Load or prompt for password ----------
+ENV_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
+INFLUX_PASSWORD = None
+if os.path.exists(ENV_PATH):
+    with open(ENV_PATH, 'r') as f:
+        for line in f:
+            if line.startswith('INFLUX_PASSWORD='):
+                INFLUX_PASSWORD = line.strip().split('=', 1)[1]
+                break
+if not INFLUX_PASSWORD:
+    INFLUX_PASSWORD = getpass.getpass("Enter InfluxDB password for team19: ")
+    with open(ENV_PATH, 'a') as f:
+        f.write(f"INFLUX_PASSWORD={INFLUX_PASSWORD}\n")
 
 def insert_data(db_name, user, password, measurement, value, timestamp=None):
     line = f"{measurement} value={value}"
@@ -73,7 +88,7 @@ def delete_data(db_name, user, password, measurement, condition="time < now()"):
 
 def main():
     student_user = "team19"
-    student_pass = getpass.getpass("Enter InfluxDB password for team19: ")
+    student_pass = INFLUX_PASSWORD
     db_name = "team19_db"
 
     # Show topics and check password once
