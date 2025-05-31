@@ -12,3 +12,8 @@ pip install --upgrade pip
 
 # Install dependencies
 pip install -r requirements.txt
+
+# If arguments are given, run the Python file inside the venv
+if [ $# -gt 0 ]; then
+  python "$@"
+fi
