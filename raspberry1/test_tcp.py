@@ -3,8 +3,22 @@ import os
 
 # --- TCP Client Example ---
 def tcp_client():
+    # Prompt user for server selection
+    print("Choose server to connect to:")
+    print("1. giannis")
+    print("2. aggelos")
+    print("3. pi2")
+    server_choice = input("Enter 1 for giannis, 2 for aggelos, 3 for pi2: ").strip()
     host = '94.71.245.187'
-    port = 65432
+    if server_choice == '1':
+        port = 3030
+    elif server_choice == '2':
+        port = 65431
+    elif server_choice == '3':
+        port = 65432
+    else:
+        print("Invalid choice.")
+        return
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.connect((host, port))
         message = 'Hello, TCP server!'
@@ -33,8 +47,22 @@ def tcp_server():
 
 # --- UDP Client Example ---
 def udp_client():
+    # Prompt user for server selection
+    print("Choose server to connect to:")
+    print("1. giannis")
+    print("2. aggelos")
+    print("3. pi2")
+    server_choice = input("Enter 1 for giannis, 2 for aggelos, 3 for pi2: ").strip()
     host = '94.71.245.187'
-    port = 65432
+    if server_choice == '1':
+        port = 3030
+    elif server_choice == '2':
+        port = 65431
+    elif server_choice == '3':
+        port = 65432
+    else:
+        print("Invalid choice.")
+        return
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
         message = 'Hello, UDP server!'
         print(f'Sending: {message}')
