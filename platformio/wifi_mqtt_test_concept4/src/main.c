@@ -24,8 +24,10 @@
 #include <netdb.h> // For gethostbyname
 
 // WiFi configuration
-#define WIFI_SSID "COSMOTE-203853"//"1"
-#define WIFI_PASS "4tu3a8fesnptt7n5" //"minecraft123"
+// #define WIFI_SSID "COSMOTE-203853"
+// #define WIFI_PASS "4tu3a8fesnptt7n5"
+#define WIFI_SSID "1"
+#define WIFI_PASS "minecraft123"
 
 // I2C configuration for driver_ng
 #define I2C_MASTER_SCL_IO           9
