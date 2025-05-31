@@ -19,13 +19,13 @@ INFLUX_PASSWORD = None
 if os.path.exists(ENV_PATH):
     with open(ENV_PATH, 'r') as f:
         for line in f:
-            if line.startswith('INFLUX_PASSWORD='):
+            if line.startswith('MQTT_PASSWORD='):
                 INFLUX_PASSWORD = line.strip().split('=', 1)[1]
                 break
 if not INFLUX_PASSWORD:
     INFLUX_PASSWORD = getpass.getpass("Enter InfluxDB password for team19: ")
     with open(ENV_PATH, 'a') as f:
-        f.write(f"INFLUX_PASSWORD={INFLUX_PASSWORD}\n")
+        f.write(f"MQTT_PASSWORD={INFLUX_PASSWORD}\n")
 
 def insert_data(db_name, user, password, measurement, value, timestamp=None):
     line = f"{measurement} value={value}"
