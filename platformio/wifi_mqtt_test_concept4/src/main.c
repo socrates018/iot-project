@@ -24,16 +24,16 @@
 #include <netdb.h> // For gethostbyname
 
 // WiFi configuration
-// #define WIFI_SSID "COSMOTE-203853"
-// #define WIFI_PASS "4tu3a8fesnptt7n5"
-#define WIFI_SSID "1"
-#define WIFI_PASS "minecraft123"
+#define WIFI_SSID "COSMOTE-203853"
+#define WIFI_PASS "4tu3a8fesnptt7n5"
+// #define WIFI_SSID "1"
+// #define WIFI_PASS "minecraft123"
 
 // I2C configuration for driver_ng
 #define I2C_MASTER_SCL_IO           9
 #define I2C_MASTER_SDA_IO           7
 #define I2C_MASTER_FREQ_HZ          100000
-#define I2C_MASTER_PORT             0 // Added missing definition
+#define I2C_MASTER_PORT             0
 
 // LED configuration
 #define NEOPIXEL_GPIO 8
@@ -55,7 +55,7 @@ static EventGroupHandle_t s_wifi_event_group;
 static const char *TAG = "SENSOR_UDP";
 
 // Optionally override the last 3 bytes of the MAC address for device ID
-#define USE_VIRTUAL_MAC 1
+#define USE_VIRTUAL_MAC 0
 #define VIRTUAL_MAC_ID "A1B2C3" // Set to desired 6-char hex string if USE_VIRTUAL_MAC is 1
 
 // WiFi event handler: Handles WiFi and IP events for connection management
@@ -235,7 +235,7 @@ static void sensor_udp_task(void *pvParameters) {
             case 3: r = 255; g = 165; b = 0; break;
             case 4: r = 128; g = 0; b = 128; break;
             case 5: r = 255; g = 0; b = 0; break;
-            default: r = 0; g = 0; b = 255; break;
+            default: r = 255; g = 255; b = 255; break;
         }
         led_strip_clear(strip);
         led_strip_set_pixel(strip, 0, r, g, b);
