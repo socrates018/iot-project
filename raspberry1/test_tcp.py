@@ -1,4 +1,5 @@
 import socket
+import os
 
 # --- TCP Client Example ---
 def tcp_client():
@@ -25,9 +26,10 @@ def tcp_server():
             print(f'Connected by {addr}')
             data = conn.recv(1024)
             print(f'Received: {data.decode()}')
-            response = 'Hello, TCP client!'
-            conn.sendall(response.encode())
-            print(f'Sent: {response}')
+            # Generate random 70-byte message
+            response = os.urandom(70)
+            conn.sendall(response)
+            print(f'Sent: {response.hex()}')
 
 # --- UDP Client Example ---
 def udp_client():
@@ -49,9 +51,10 @@ def udp_server():
         print(f'UDP server listening on {HOST}:{PORT}')
         data, addr = s.recvfrom(1024)
         print(f'Received from {addr}: {data.decode()}')
-        response = 'Hello, UDP client!'
-        s.sendto(response.encode(), addr)
-        print(f'Sent: {response}')
+        # Generate random 70-byte message
+        response = os.urandom(70)
+        s.sendto(response, addr)
+        print(f'Sent: {response.hex()}')
 
 if __name__ == "__main__":
     print("Choose protocol:")
