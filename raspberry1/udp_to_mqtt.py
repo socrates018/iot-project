@@ -34,6 +34,8 @@ MQTT_USERNAME = "team19"  # MQTT username
 MQTT_RETRY_INTERVAL = 5    # Seconds between MQTT connection retry attempts
 MAX_RETRY_ATTEMPTS = 3     # Maximum number of MQTT connection retry attempts
 PUBLISH_INTERVAL = 2       # Seconds between MQTT publishes (batch interval)
+# --- UTC OFFSET (hours to subtract from timestamp) ---
+UTC_OFFSET_HOURS = 3
 
 import socket
 import json
@@ -110,8 +112,8 @@ def process_message(mqtt_client, data, addr):
             json_data = json.loads(message)
             device_id = json_data.get("id", None)
             if device_id:
-                # Add/replace 'timestamp' with current unix time
-                json_data["timestamp"] = int(time.time())
+                # Add/replace 'timestamp' with current unix time minus UTC_OFFSET_HOURS
+                json_data["timestamp"] = int(time.time() - UTC_OFFSET_HOURS * 3600)
                 latest_readings[device_id] = json_data
                 print(f"Updated reading for {device_id}: {json_data}")
             else:
