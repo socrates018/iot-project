@@ -14,7 +14,7 @@ def tcp_client():
 
 # --- TCP Server Example ---
 def tcp_server():
-    HOST = '94.71.245.187'
+    HOST = '0.0.0.0'
     PORT = 65432
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((HOST, PORT))
