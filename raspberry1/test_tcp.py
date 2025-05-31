@@ -3,8 +3,8 @@ import os
 
 # --- TCP Client Example ---
 def tcp_client():
-    host = input("Enter remote server IP to connect to: ").strip()
-    port = int(input("Enter remote server port to connect to: ").strip())
+    host = '94.71.245.187'
+    port = 65432
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.connect((host, port))
         message = 'Hello, TCP server!'
@@ -33,8 +33,8 @@ def tcp_server():
 
 # --- UDP Client Example ---
 def udp_client():
-    host = input("Enter remote server IP to connect to: ").strip()
-    port = int(input("Enter remote server port to connect to: ").strip())
+    host = '94.71.245.187'
+    port = 65432
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
         message = 'Hello, UDP server!'
         print(f'Sending: {message}')
