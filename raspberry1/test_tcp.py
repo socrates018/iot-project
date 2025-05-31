@@ -38,9 +38,9 @@ def tcp_client():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.connect((host, port))
         print(f"[DEBUG] Connected to TCP server at {host}:{port}")
-        message = 'Hello, TCP server!'
-        print(f'Sending: {message}')
-        s.sendall(message.encode())
+        message = os.urandom(70)
+        print(f'Sending 70 bytes: {message.hex()}')
+        s.sendall(message)
         data = s.recv(1024)
         print(f'Received: {data.decode()}')
 
@@ -83,9 +83,9 @@ def udp_client():
         return
     print(f"[DEBUG] Sending to UDP server at {host}:{port}")
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-        message = 'Hello, UDP server!'
-        print(f'Sending: {message}')
-        s.sendto(message.encode(), (host, port))
+        message = os.urandom(70)
+        print(f'Sending 70 bytes: {message.hex()}')
+        s.sendto(message, (host, port))
         print(f"[DEBUG] Sent to UDP server at {host}:{port}")
         data, addr = s.recvfrom(1024)
         print(f'Received from {addr}: {data.decode()}')
