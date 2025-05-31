@@ -20,4 +20,4 @@ fi
 bash "$REPO_DIR/update.sh"
 
 # Run venv.sh with python file
-bash "$REPO_DIR/venv.sh" python3 "$SCRIPT_PATH"
+bash "$REPO_DIR/venv.sh" "$SCRIPT_PATH"
