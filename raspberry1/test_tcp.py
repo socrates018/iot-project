@@ -38,11 +38,11 @@ def tcp_client():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.connect((host, port))
         print(f"[DEBUG] Connected to TCP server at {host}:{port}")
-        message = os.urandom(70)
-        print(f'Sending 70 bytes: {message.hex()}')
+        message = os.urandom(10 * 1024 * 1024)  # 10MB
+        print(f'Sending 10MB of data')
         s.sendall(message)
         data = s.recv(1024)
-        print(f'Received: {data.decode()}')
+        print(f'Received: {data.decode(errors="replace")}')
 
 # --- TCP Server Example ---
 def tcp_server():
@@ -57,12 +57,20 @@ def tcp_server():
         print(f"[DEBUG] Client connected from {addr}")
         with conn:
             print(f'Connected by {addr}')
-            data = conn.recv(1024)
-            print(f'Received: {data.decode()}')
-            # Generate random 70-byte message
-            response = os.urandom(70)
+            received = 0
+            chunks = []
+            to_receive = 10 * 1024 * 1024  # 10MB
+            while received < to_receive:
+                chunk = conn.recv(min(4096, to_receive - received))
+                if not chunk:
+                    break
+                chunks.append(chunk)
+                received += len(chunk)
+            print(f'Received {received} bytes from client')
+            # Generate random 10MB message
+            response = os.urandom(10 * 1024 * 1024)
             conn.sendall(response)
-            print(f'Sent: {response.hex()}')
+            print(f'Sent 10MB of data')
 
 # --- UDP Client Example ---
 def udp_client():
@@ -84,12 +92,15 @@ def udp_client():
         return
     print(f"[DEBUG] Sending to UDP server at {host}:{port}")
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-        message = os.urandom(70)
-        print(f'Sending 70 bytes: {message.hex()}')
-        s.sendto(message, (host, port))
-        print(f"[DEBUG] Sent to UDP server at {host}:{port}")
+        message = os.urandom(10 * 1024 * 1024)  # 10MB
+        print(f'Sending 10MB of data in UDP packets')
+        # UDP has a max packet size, so send in chunks
+        chunk_size = 1400
+        for i in range(0, len(message), chunk_size):
+            s.sendto(message[i:i+chunk_size], (host, port))
+        print(f"[DEBUG] Sent 10MB to UDP server at {host}:{port}")
         data, addr = s.recvfrom(1024)
-        print(f'Received from {addr}: {data.decode()}')
+        print(f'Received from {addr}: {data.decode(errors="replace")}')
 
 # --- UDP Server Example ---
 def udp_server():
@@ -99,13 +110,25 @@ def udp_server():
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
         s.bind((HOST, PORT))
         print(f'UDP server listening on {HOST}:{PORT}')
-        data, addr = s.recvfrom(1024)
+        received = 0
+        chunks = []
+        to_receive = 10 * 1024 * 1024  # 10MB
+        addr = None
+        while received < to_receive:
+            chunk, addr = s.recvfrom(4096)
+            if not chunk:
+                break
+            chunks.append(chunk)
+            received += len(chunk)
         print(f"[DEBUG] Datagram received from {addr}")
-        print(f'Received from {addr}: {data.decode()}')
-        # Generate random 70-byte message
-        response = os.urandom(70)
-        s.sendto(response, addr)
-        print(f'Sent: {response.hex()}')
+        print(f'Received {received} bytes from {addr}')
+        # Generate random 10MB message
+        response = os.urandom(10 * 1024 * 1024)
+        # Send in chunks
+        chunk_size = 1400
+        for i in range(0, len(response), chunk_size):
+            s.sendto(response[i:i+chunk_size], addr)
+        print(f'Sent 10MB of data')
 
 if __name__ == "__main__":
     print("Choose protocol:")
