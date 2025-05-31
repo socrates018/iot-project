@@ -30,7 +30,7 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=$REPO_DIR
-ExecStart=/bin/bash -c 'cd $REPO_DIR && git pull && $REPO_DIR/venv.sh python3 $SCRIPT_PATH'
+ExecStart=/bin/bash -c 'cd $REPO_DIR && ./update.sh && $REPO_DIR/venv.sh python3 $SCRIPT_PATH'
 Restart=always
 User=$(whoami)
 
