@@ -30,7 +30,13 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=$REPO_DIR
-ExecStart=/bin/bash -c 'cd $REPO_DIR && bash ./update.sh && bash $REPO_DIR/venv.sh python3 $SCRIPT_PATH'
+ExecStart=/bin/bash -c '
+cd $REPO_DIR && \
+python3 -m venv venv && \
+source venv/bin/activate && \
+pip install --upgrade pip && \
+pip install -r requirements.txt && \
+python3 $SCRIPT_PATH'
 Restart=always
 User=pi
 
