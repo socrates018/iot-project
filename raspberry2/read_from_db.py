@@ -118,7 +118,16 @@ def main():
 
     if action == "2":
         measurement = input("Enter measurement to delete (default: all): ").strip() or "all"
-        condition = input("Enter delete condition (default: time < now()): ").strip() or "time < now()"
+        raw_condition = input("Enter delete time (YYYY/M/D:H:M) or custom condition (default: before now): ").strip()
+        # Determine the condition
+        if not raw_condition:
+            condition = "time < now()"
+        elif raw_condition.count(":") == 2 and raw_condition.count("/") == 2:
+            # Looks like a date/time string
+            condition = f"time < {raw_condition}"
+        else:
+            # Assume user entered a custom condition
+            condition = raw_condition
         if measurement == "all":
             all_measurements_json = auth_check.json()
             measurement_names = [entry[0] for entry in all_measurements_json.get("results", [])[0]["series"][0]["values"]]
