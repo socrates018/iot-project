@@ -3,15 +3,11 @@ from requests.auth import HTTPBasicAuth
 import getpass
 import os
 
-# Define the InfluxDB IP and URL here
-
 # InfluxDB IPs:
 # Public: 194.177.207.38
 # Local: 10.64.44.156
 INFLUXDB_IP = "194.177.207.38"
 INFLUXDB_URL = f"http://{INFLUXDB_IP}:8086"
-ADMIN_USER = "username"
-ADMIN_PASS = "password"  # No longer hardcoded
 
 # ---------- Load or prompt for password ----------
 ENV_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
