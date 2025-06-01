@@ -35,8 +35,8 @@ MQTT_RETRY_INTERVAL = 5    # Seconds between MQTT connection retry attempts
 MAX_RETRY_ATTEMPTS = 3     # Maximum number of MQTT connection retry attempts
 PUBLISH_INTERVAL = 2       # Seconds between MQTT publishes (batch interval)
 # --- UTC OFFSET (hours to subtract from timestamp) ---
-UTC_OFFSET_HOURS = 3
-UTC_OFFSET_NANOSECONDS = UTC_OFFSET_HOURS * 3600 * 1_000_000_000
+# UTC_OFFSET_HOURS = 3
+# UTC_OFFSET_NANOSECONDS = UTC_OFFSET_HOURS * 3600 * 1_000_000_000
 
 import socket
 import json
@@ -104,26 +104,6 @@ def setup_mqtt():
 # Store latest reading from each ESP by id
 latest_readings = {}
 
-# Process message and store latest reading per ESP
-# Note: We remove the 'timestamp' field before storing/publishing, as timestamps will be added automatically by the database (InfluxDB)
-def process_message(mqtt_client, data, addr):
-    try:
-        message = data.decode().strip()
-        try:
-            json_data = json.loads(message)
-            device_id = json_data.get("id", None)
-            if device_id:
-                # Add/replace 'timestamp' with current unix time minus UTC_OFFSET_HOURS (in nanoseconds)
-                json_data["timestamp"] = int(time.time_ns() - UTC_OFFSET_NANOSECONDS)
-                latest_readings[device_id] = json_data
-                print(f"Updated reading for {device_id}: {json_data}")
-            else:
-                print(f"No 'id' in message: {json_data}")
-        except json.JSONDecodeError:
-            print(f"Non-JSON message from {addr}: {message}")
-    except Exception as e:
-        print(f"Error processing message: {e}")
-
 # Thread-safe queue for incoming UDP packets
 udp_queue = queue.Queue()
 
@@ -154,14 +134,8 @@ def udp_receive_loop(sock, udp_queue):
             json_data = json.loads(message)
             device_id = json_data.get("id", None)
             if device_id:
-                # Simplified timestamp conversion: add 3 hours and convert to nanoseconds
-                ts = json_data.get("timestamp", time.time())
-                try:
-                    ts_sec = float(ts) + 3 * 3600
-                except Exception:
-                    ts_sec = time.time() + 3 * 3600
-                ts_ns = int(ts_sec * 1_000_000_000)
-                json_data["timestamp"] = ts_ns
+                # Set timestamp to current UTC time in nanoseconds (UTC+0)
+                json_data["timestamp"] = int(time.time_ns())
                 latest_readings[device_id] = json_data
                 print(f"Updated reading for {device_id}: {json_data}")
                 udp_queue.put((device_id, json_data))
