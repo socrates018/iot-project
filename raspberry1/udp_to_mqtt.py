@@ -34,9 +34,6 @@ MQTT_USERNAME = "team19"  # MQTT username
 MQTT_RETRY_INTERVAL = 5    # Seconds between MQTT connection retry attempts
 MAX_RETRY_ATTEMPTS = 3     # Maximum number of MQTT connection retry attempts
 PUBLISH_INTERVAL = 2       # Seconds between MQTT publishes (batch interval)
-# --- UTC OFFSET (hours to subtract from timestamp) ---
-UTC_OFFSET_HOURS = 3
-fUTC_OFFSET_NANOSECONDS = UTC_OFFSET_HOURS * 3600 * 1_000_000_000
 
 import socket
 import json
@@ -134,8 +131,8 @@ def udp_receive_loop(sock, udp_queue):
             json_data = json.loads(message)
             device_id = json_data.get("id", None)
             if device_id:
-                # Set timestamp to current UTC time minus UTC_OFFSET_HOURS (in nanoseconds)
-                json_data["timestamp"] = int(time.time_ns() - fUTC_OFFSET_NANOSECONDS)
+                # Set timestamp to current unix time (seconds)
+                json_data["timestamp"] = int(time.time())
                 latest_readings[device_id] = json_data
                 print(f"Updated reading for {device_id}: {json_data}")
                 udp_queue.put((device_id, json_data))
