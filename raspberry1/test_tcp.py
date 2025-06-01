@@ -55,13 +55,10 @@ def udp_client():
     port = int(input("Enter server port to send to: ").strip())
     print(f"[DEBUG] Sending to UDP server at {host}:{port}")
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-        message = os.urandom(10 * 1024 * 1024)  # 10MB
-        print(f'Sending 10MB of data in UDP packets')
-        # UDP has a max packet size, so send in chunks
-        chunk_size = 1400
-        for i in range(0, len(message), chunk_size):
-            s.sendto(message[i:i+chunk_size], (host, port))
-        print(f"[DEBUG] Sent 10MB to UDP server at {host}:{port}")
+        message = os.urandom(70)  # 70 bytes
+        print(f'Sending 70 bytes of data in UDP packet')
+        s.sendto(message, (host, port))
+        print(f"[DEBUG] Sent 70 bytes to UDP server at {host}:{port}")
         data, addr = s.recvfrom(1024)
         print(f'Received from {addr}: {data.decode(errors="replace")}')
 
