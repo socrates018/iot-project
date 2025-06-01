@@ -77,7 +77,24 @@ def show_topics(db_name, user, password):
         print("Error processing topics response:", e)
     return response
 
+def parse_time_to_ns(timestr):
+    """
+    Convert a string in the format YYYY/M/D:H:M (accepts single or double digits) to nanoseconds since epoch (int).
+    Example: '2025/6/1:0:0' or '2025/06/01:00:00' -> 1746038400000000000
+    """
+    import datetime
+    parts = timestr.replace('/', ' ').replace(':', ' ').split()
+    year, month, day, hour, minute = [int(p) for p in parts]
+    dt = datetime.datetime(year, month, day, hour, minute)
+    return int(dt.timestamp() * 1_000_000_000)
+
 def delete_data(db_name, user, password, measurement, condition="time < now()"):
+    # If the condition contains a time in YYYY/M/D:H:M, convert it to ns
+    import re
+    match = re.search(r"(\d{4}/\d{1,2}/\d{1,2}:\d{1,2}:\d{1,2})", condition)
+    if match:
+        ns = parse_time_to_ns(match.group(1))
+        condition = re.sub(r"\d{4}/\d{1,2}/\d{1,2}:\d{1,2}:\d{1,2}", str(ns), condition)
     query = f"DELETE FROM {measurement} WHERE {condition}"
     response = requests.get(f"{INFLUXDB_URL}/query",
                           params={"db": db_name, "q": query},
