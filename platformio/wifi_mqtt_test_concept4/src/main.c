@@ -40,7 +40,9 @@
 #define NUM_PIXELS    1
 
 // UDP configuration
-#define UDP_TARGET_HOST   "team19pi.ddns.net"//"192.168.1.9"
+// #define UDP_TARGET_HOST   "team19pi.ddns.net"//"192.168.1.9"
+// #define UDP_TARGET_HOST   "kaltsas123.dyndns.org"
+#define UDP_TARGET_HOST  "149.210.85.184"
 #define UDP_TARGET_PORT   8080
 
 // Sensor send interval (in seconds)
