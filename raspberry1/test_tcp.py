@@ -2,38 +2,17 @@ import socket
 import os
 
 def get_port_for_local_ip():
-    hostname = socket.gethostname()
-    local_ip = socket.gethostbyname(hostname)
-    if local_ip == '192.168.1.3':
-        port = 3030
-    elif local_ip == '192.168.1.9':
-        port = 65432
-    elif local_ip == '192.168.1.6':
-        port = 65431
-    else:
-        print(f"[DEBUG] Unknown IP {local_ip}, using default port 65432")
-        port = 65432
-    print(f"[DEBUG] Detected local IP {local_ip}, using port {port}")
+    # Prompt user for port only; always bind to 0.0.0.0 for server
+    port = int(input("Enter port to bind: ").strip())
+    local_ip = '0.0.0.0'
+    print(f"[DEBUG] Using local IP {local_ip}, port {port}")
     return port, local_ip
 
 # --- TCP Client Example ---
 def tcp_client():
-    # Prompt user for server selection
-    print("Choose server to connect to:")
-    print("1. giannis")
-    print("2. aggelos")
-    print("3. pi2")
-    server_choice = input("Enter 1 for giannis, 2 for aggelos, 3 for pi2: ").strip()
-    host = '94.71.245.187'
-    if server_choice == '1':
-        port = 3030
-    elif server_choice == '2':
-        port = 65431
-    elif server_choice == '3':
-        port = 65432
-    else:
-        print("Invalid choice.")
-        return
+    # Prompt user for server IP and port
+    host = input("Enter server IP to connect to: ").strip()
+    port = int(input("Enter server port to connect to: ").strip())
     print(f"[DEBUG] Connecting to TCP server at {host}:{port}")
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.connect((host, port))
@@ -46,9 +25,8 @@ def tcp_client():
 
 # --- TCP Server Example ---
 def tcp_server():
-    PORT, local_ip = get_port_for_local_ip()
-    HOST = '0.0.0.0'
-    print(f"[DEBUG] TCP server detected local IP {local_ip}, using port {PORT}")
+    PORT, HOST = get_port_for_local_ip()
+    print(f"[DEBUG] TCP server using local IP {HOST}, port {PORT}")
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((HOST, PORT))
         s.listen()
@@ -74,22 +52,9 @@ def tcp_server():
 
 # --- UDP Client Example ---
 def udp_client():
-    # Prompt user for server selection
-    print("Choose server to connect to:")
-    print("1. giannis")
-    print("2. aggelos")
-    print("3. pi2")
-    server_choice = input("Enter 1 for giannis, 2 for aggelos, 3 for pi2: ").strip()
-    host = '94.71.245.187'
-    if server_choice == '1':
-        port = 3030
-    elif server_choice == '2':
-        port = 65431
-    elif server_choice == '3':
-        port = 65432
-    else:
-        print("Invalid choice.")
-        return
+    # Prompt user for server IP and port
+    host = input("Enter server IP to send to: ").strip()
+    port = int(input("Enter server port to send to: ").strip())
     print(f"[DEBUG] Sending to UDP server at {host}:{port}")
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
         message = os.urandom(10 * 1024 * 1024)  # 10MB
@@ -104,9 +69,8 @@ def udp_client():
 
 # --- UDP Server Example ---
 def udp_server():
-    PORT, local_ip = get_port_for_local_ip()
-    HOST = '0.0.0.0'
-    print(f"[DEBUG] UDP server detected local IP {local_ip}, using port {PORT}")
+    PORT, HOST = get_port_for_local_ip()
+    print(f"[DEBUG] UDP server using local IP {HOST}, port {PORT}")
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
         s.bind((HOST, PORT))
         print(f'UDP server listening on {HOST}:{PORT}')
