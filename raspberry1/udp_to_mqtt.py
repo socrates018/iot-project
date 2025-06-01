@@ -37,11 +37,11 @@ PUBLISH_INTERVAL = 2       # Seconds between MQTT publishes (batch interval)
 
 import socket
 import json
-import paho.mqtt.client as mqtt
 import time
 import os
 import threading
 import queue
+import paho.mqtt.client as mqtt
 
 # ---------- Load or prompt for password ----------
 ENV_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
@@ -147,7 +147,6 @@ def check_mqtt_password(broker, port, username, password):
     """
     Returns True if MQTT credentials are correct (can connect), False otherwise.
     """
-    import paho.mqtt.client as mqtt
     result = [False]
     def on_connect(client, userdata, flags, rc, properties=None):
         if rc == 0:

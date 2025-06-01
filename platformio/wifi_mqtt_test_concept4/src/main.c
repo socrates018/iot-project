@@ -55,7 +55,7 @@ static EventGroupHandle_t s_wifi_event_group;
 static const char *TAG = "SENSOR_UDP";
 
 // Optionally override the last 3 bytes of the MAC address for device ID
-#define USE_VIRTUAL_MAC 1
+#define USE_VIRTUAL_MAC 0
 #define VIRTUAL_MAC_ID "A1B2C3" // Set to desired 6-char hex string if USE_VIRTUAL_MAC is 1
 
 // WiFi event handler: Handles WiFi and IP events for connection management
