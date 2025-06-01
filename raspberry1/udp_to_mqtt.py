@@ -131,8 +131,8 @@ def udp_receive_loop(sock, udp_queue):
             json_data = json.loads(message)
             device_id = json_data.get("id", None)
             if device_id:
-                # Set timestamp to current unix time (seconds)
-                json_data["timestamp"] = int(time.time())
+                # Set timestamp to current unix time in nanoseconds
+                json_data["timestamp"] = int(time.time_ns())
                 latest_readings[device_id] = json_data
                 print(f"Updated reading for {device_id}: {json_data}")
                 udp_queue.put((device_id, json_data))
