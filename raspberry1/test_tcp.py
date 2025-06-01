@@ -17,11 +17,10 @@ def tcp_client():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.connect((host, port))
         print(f"[DEBUG] Connected to TCP server at {host}:{port}")
-        message = os.urandom(10 * 1024 * 1024)  # 10MB
-        print(f'Sending 10MB of data')
+        message = os.urandom(70)  # 70 bytes
+        print(f'Sending 70 bytes of data')
         s.sendall(message)
-        data = s.recv(1024)
-        print(f'Received: {data.decode(errors="replace")}')
+        print('Data sent.')
 
 # --- TCP Server Example ---
 def tcp_server():
@@ -37,7 +36,7 @@ def tcp_server():
             print(f'Connected by {addr}')
             received = 0
             chunks = []
-            to_receive = 10 * 1024 * 1024  # 10MB
+            to_receive = 70  # 70 bytes
             while received < to_receive:
                 chunk = conn.recv(min(4096, to_receive - received))
                 if not chunk:
@@ -45,10 +44,9 @@ def tcp_server():
                 chunks.append(chunk)
                 received += len(chunk)
             print(f'Received {received} bytes from client')
-            # Generate random 10MB message
-            response = os.urandom(10 * 1024 * 1024)
-            conn.sendall(response)
-            print(f'Sent 10MB of data')
+            # Optionally, you can send a small acknowledgment if you want
+            # conn.sendall(b'OK')
+            # print('Sent acknowledgment to client')
 
 # --- UDP Client Example ---
 def udp_client():
