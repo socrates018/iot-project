@@ -76,7 +76,6 @@ def udp_server():
                 data, addr = s.recvfrom(4096)
                 if not data:
                     break
-                print(f"[DEBUG] Datagram received from {addr}")
                 print(f'Received {len(data)} bytes from {addr}')
         except KeyboardInterrupt:
             print("\n[INFO] UDP server stopped by user.")

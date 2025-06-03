@@ -13,7 +13,7 @@
 #include "nvs_flash.h"
 #include "lwip/inet.h"
 #include "freertos/semphr.h"
-#include "esp_http_client.h" // Moved here from app_main
+#include "esp_http_client.h"
 #include "driver/i2c_master.h"
 #include "ens160.h"
 #include "aht20.h"
@@ -21,12 +21,12 @@
 #include "driver/gpio.h"
 #include "lwip/sockets.h"
 #include "esp_netif.h"
-#include <netdb.h> // For gethostbyname
+#include <netdb.h>
 
 // UDP configuration
 // #define HOST   "team19pi.ddns.net"//"192.168.1.9"
-// #define HOST   "kaltsas123.dyndns.org"
-#define HOST  "149.210.85.184"
+#define HOST   "kaltsas123.dyndns.org"
+// #define PORT   65431
 #define PORT   8080
 
 // Protocol selection: set PROTOCOL_USE_TCP to 1 for TCP, 0 for UDP
@@ -82,13 +82,6 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 #if !PROTOCOL_USE_TCP
 static void udp_send_sensor_data(const char *payload) {
     // Print diagnostics before sending
-    esp_netif_ip_info_t ip_info;
-    esp_netif_t *netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
-    if (netif && esp_netif_get_ip_info(netif, &ip_info) == ESP_OK) {
-        ESP_LOGI(TAG, "Local IP: %s", ip4addr_ntoa((const ip4_addr_t *)&ip_info.ip));
-    } else {
-        ESP_LOGW(TAG, "Could not get local IP info");
-    }
     ESP_LOGI(TAG, "Preparing to send UDP to %s:%d", HOST, PORT);
     ESP_LOGI(TAG, "Payload: %s", payload);
 
@@ -127,13 +120,6 @@ static void udp_send_sensor_data(const char *payload) {
 #if PROTOCOL_USE_TCP
 // Sends sensor data as a TCP packet to the configured host and port
 static void tcp_send_sensor_data(const char *payload) {
-    esp_netif_ip_info_t ip_info;
-    esp_netif_t *netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
-    if (netif && esp_netif_get_ip_info(netif, &ip_info) == ESP_OK) {
-        ESP_LOGI(TAG, "Local IP: %s", ip4addr_ntoa((const ip4_addr_t *)&ip_info.ip));
-    } else {
-        ESP_LOGW(TAG, "Could not get local IP info");
-    }
     ESP_LOGI(TAG, "Preparing to send TCP to %s:%d", HOST, PORT);
     ESP_LOGI(TAG, "Payload: %s", payload);
 
