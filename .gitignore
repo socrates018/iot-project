@@ -50,9 +50,9 @@ htmlcov/
 # .env
 # config.json
 
-# YAML files and associated artifacts
-*.yaml
-*.yml
+# YAML files (ignore everywhere recursively)
+**/*.yaml
+**/*.yml
 *.yamllint
 *.yamllint.yaml
 *.yamllint.yml
