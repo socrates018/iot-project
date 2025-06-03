@@ -50,9 +50,5 @@ htmlcov/
 # .env
 # config.json
 
-# YAML files (ignore everywhere recursively)
-**/*.yaml
-**/*.yml
-*.yamllint
-*.yamllint.yaml
-*.yamllint.yml
+# Ignore only the specific datasource.yml file, not all yaml files
+raspberry2/webserver/grafana/provisioning/datasource.yml
