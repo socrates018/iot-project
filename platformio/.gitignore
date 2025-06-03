@@ -1,0 +1,60 @@
+# PlatformIO build and config files
+.pio/
+.vscode/
+*.elf
+*.bin
+*.map
+*.pyc
+*.pyo
+__pycache__/
+.DS_Store
+*.log
+*.swp
+*.swo
+*.bak
+*.tmp
+*.orig
+*.d
+*.o
+*.a
+*.gcda
+*.gcno
+*.gcov
+*.out
+*.obj
+*.exe
+*.class
+*.user
+*.sublime-workspace
+*.sublime-project
+*.code-workspace
+*.ipch
+*.db
+*.sdf
+*.opensdf
+*.VC.db
+*.VC.opendb
+*.vscode/
+# PlatformIO project environments
+.env/
+# PlatformIO dependency lock
+**/dependencies.lock
+# PlatformIO test output
+**/test/.pioenvs/
+**/test/.piolibdeps/
+# PlatformIO managed components
+**/managed_components/
+# PlatformIO build output
+**/.pio/
+# PlatformIO CMake build output
+**/build/
+# PlatformIO generated sdkconfig
+**/sdkconfig.old
+**/sdkconfig.save
+# PlatformIO generated files
+**/.DS_Store
+# PlatformIO backup files
+*~
+# PlatformIO Python virtual environments
+.venv/
+venv/

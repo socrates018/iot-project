@@ -1,11 +1,12 @@
-((((# NAME RASPBERRY A DEBUG FOLDER  because it is used as debug)))))
-# raspberry1
+# Raspberry Pi 1 - Central UDP to MQTT Gateway
 
-This directory contains Python projects and examples for Raspberry Pi, focusing on MQTT, simple apps, and project templates.
+This directory contains Python scripts for the central gateway that collects sensor data from all ESP32 nodes and forwards it to an MQTT broker.
 
 ## Structure
-- `test-mqtt-publish/` - MQTT publish example to test functionality 
-- `test-mqtt-subscribe/` - MQTT subscribe example to test functionality 
+- `udp_to_mqtt.py` - Main gateway script that receives UDP packets from ESP32s and publishes to MQTT
+- `test-mqtt-publish/` - MQTT publish example for testing
+- `udp_sender_test.py` - Test script for sending UDP packets
+- `test_tcp.py` - TCP & UDP communication test script
 
 # UDP to MQTT Gateway for ESP32 Sensor Nodes
 
@@ -17,7 +18,7 @@ This directory contains scripts and configurations for bridging sensor data from
 - The **gateway** collects the latest reading from each ESP32 and publishes all readings together as a single MQTT message every few seconds.
 - A separate script on another machine (or the same one) subscribes to the MQTT topic and writes the data to InfluxDB.
 
-This approach is scalable, efficient, and easy to integrate with data pipelines (e.g., InfluxDB, Grafana).
+This approach is scalable, efficient, and integrated with our InfluxDB and Grafana data visualization pipeline.
 
 ---
 
@@ -59,13 +60,13 @@ This approach is scalable, efficient, and easy to integrate with data pipelines 
    ]
    ```
    to MQTT topic `iot/team19`.
-4. **Downstream scripts** (e.g., `mqtt_to_influx.py` on raspberry2) subscribe to `iot/team19` and write the data to InfluxDB.
+4. **Downstream scripts** (`mqtt_to_influx.py` on raspberry2) subscribe to `iot/team19` and write the data to our InfluxDB database.
 
 ---
 
 ## Integration with InfluxDB
 
-See the `raspberry2/` directory for scripts like `mqtt_to_influx.py` and `mqtt_to_influx_updated.py`, which subscribe to the MQTT topic and write sensor data to an InfluxDB database for storage and visualization (e.g., with Grafana).
+See the `raspberry2/` directory for scripts like `mqtt_to_influx.py`, which subscribe to the MQTT topic and write sensor data to our InfluxDB database for storage and visualization with our Grafana installation.
 
 ---
 

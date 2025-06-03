@@ -23,11 +23,24 @@
 #include "esp_netif.h"
 #include <netdb.h> // For gethostbyname
 
+// UDP configuration
+// #define HOST   "team19pi.ddns.net"//"192.168.1.9"
+// #define HOST   "kaltsas123.dyndns.org"
+#define HOST  "149.210.85.184"
+#define PORT   8080
+
+// Protocol selection: set PROTOCOL_USE_TCP to 1 for TCP, 0 for UDP
+#define PROTOCOL_USE_TCP 0
+
 // WiFi configuration
 #define WIFI_SSID "COSMOTE-203853"
 #define WIFI_PASS "4tu3a8fesnptt7n5"
 // #define WIFI_SSID "1"
 // #define WIFI_PASS "minecraft123"
+
+// Optionally override the last 3 bytes of the MAC address for device ID
+#define USE_VIRTUAL_MAC 0
+#define VIRTUAL_MAC_ID "A1B2C3" // Set to desired 6-char hex string if USE_VIRTUAL_MAC is 1
 
 // I2C configuration for driver_ng
 #define I2C_MASTER_SCL_IO           9
@@ -39,12 +52,6 @@
 #define NEOPIXEL_GPIO 8
 #define NUM_PIXELS    1
 
-// UDP configuration
-// #define UDP_TARGET_HOST   "team19pi.ddns.net"//"192.168.1.9"
-// #define UDP_TARGET_HOST   "kaltsas123.dyndns.org"
-#define UDP_TARGET_HOST  "149.210.85.184"
-#define UDP_TARGET_PORT   8080
-
 // Sensor send interval (in seconds)
 #define SENSOR_SEND_INTERVAL_SEC 10
 #define SENSOR_SEND_INTERVAL_MS (SENSOR_SEND_INTERVAL_SEC * 1000)
@@ -55,10 +62,6 @@ static EventGroupHandle_t s_wifi_event_group;
 #define WIFI_FAIL_BIT      BIT1
 
 static const char *TAG = "SENSOR_UDP";
-
-// Optionally override the last 3 bytes of the MAC address for device ID
-#define USE_VIRTUAL_MAC 0
-#define VIRTUAL_MAC_ID "A1B2C3" // Set to desired 6-char hex string if USE_VIRTUAL_MAC is 1
 
 // WiFi event handler: Handles WiFi and IP events for connection management
 static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
@@ -76,6 +79,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 }
 
 // Sends sensor data as a UDP packet to the configured host and port (now supports hostname or IP)
+#if !PROTOCOL_USE_TCP
 static void udp_send_sensor_data(const char *payload) {
     // Print diagnostics before sending
     esp_netif_ip_info_t ip_info;
@@ -85,39 +89,88 @@ static void udp_send_sensor_data(const char *payload) {
     } else {
         ESP_LOGW(TAG, "Could not get local IP info");
     }
-    ESP_LOGI(TAG, "Preparing to send UDP to %s:%d", UDP_TARGET_HOST, UDP_TARGET_PORT);
+    ESP_LOGI(TAG, "Preparing to send UDP to %s:%d", HOST, PORT);
     ESP_LOGI(TAG, "Payload: %s", payload);
 
     struct sockaddr_in dest_addr;
     memset(&dest_addr, 0, sizeof(dest_addr));
     dest_addr.sin_family = AF_INET;
-    dest_addr.sin_port = htons(UDP_TARGET_PORT);
+    dest_addr.sin_port = htons(PORT);
 
     // Try to parse as IP, if fails, resolve as hostname
-    int pton_result = inet_pton(AF_INET, UDP_TARGET_HOST, &dest_addr.sin_addr);
+    int pton_result = inet_pton(AF_INET, HOST, &dest_addr.sin_addr);
     if (pton_result != 1) {
-        struct hostent *he = gethostbyname(UDP_TARGET_HOST);
+        struct hostent *he = gethostbyname(HOST);
         if (he && he->h_addrtype == AF_INET && he->h_length == 4) {
             memcpy(&dest_addr.sin_addr, he->h_addr, he->h_length);
-            ESP_LOGI(TAG, "Resolved hostname %s to IP %s", UDP_TARGET_HOST, inet_ntoa(dest_addr.sin_addr));
+            ESP_LOGI(TAG, "Resolved hostname %s to IP %s", HOST, inet_ntoa(dest_addr.sin_addr));
         } else {
-            ESP_LOGE(TAG, "Failed to resolve UDP target host: %s", UDP_TARGET_HOST);
+            ESP_LOGE(TAG, "Failed to resolve UDP target host: %s", HOST);
             return;
         }
     }
     int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (sock < 0) {
-        ESP_LOGE(TAG, "Unable to create UDP socket for %s (errno=%d: %s)", UDP_TARGET_HOST, errno, strerror(errno));
+        ESP_LOGE(TAG, "Unable to create UDP socket for %s (errno=%d: %s)", HOST, errno, strerror(errno));
         return;
     }
     int sent = sendto(sock, payload, strlen(payload), 0, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
     if (sent < 0) {
-        ESP_LOGE(TAG, "UDP send failed to %s:%d (errno=%d: %s)", UDP_TARGET_HOST, UDP_TARGET_PORT, errno, strerror(errno));
+        ESP_LOGE(TAG, "UDP send failed to %s:%d (errno=%d: %s)", HOST, PORT, errno, strerror(errno));
     } else {
-        ESP_LOGI(TAG, "UDP packet sent to %s:%d (%d bytes)", UDP_TARGET_HOST, UDP_TARGET_PORT, sent);
+        ESP_LOGI(TAG, "UDP packet sent to %s:%d (%d bytes)", HOST, PORT, sent);
     }
     close(sock);
 }
+#endif
+
+#if PROTOCOL_USE_TCP
+// Sends sensor data as a TCP packet to the configured host and port
+static void tcp_send_sensor_data(const char *payload) {
+    esp_netif_ip_info_t ip_info;
+    esp_netif_t *netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+    if (netif && esp_netif_get_ip_info(netif, &ip_info) == ESP_OK) {
+        ESP_LOGI(TAG, "Local IP: %s", ip4addr_ntoa((const ip4_addr_t *)&ip_info.ip));
+    } else {
+        ESP_LOGW(TAG, "Could not get local IP info");
+    }
+    ESP_LOGI(TAG, "Preparing to send TCP to %s:%d", HOST, PORT);
+    ESP_LOGI(TAG, "Payload: %s", payload);
+
+    struct sockaddr_in dest_addr;
+    memset(&dest_addr, 0, sizeof(dest_addr));
+    dest_addr.sin_family = AF_INET;
+    dest_addr.sin_port = htons(PORT);
+    int pton_result = inet_pton(AF_INET, HOST, &dest_addr.sin_addr);
+    if (pton_result != 1) {
+        struct hostent *he = gethostbyname(HOST);
+        if (he && he->h_addrtype == AF_INET && he->h_length == 4) {
+            memcpy(&dest_addr.sin_addr, he->h_addr, he->h_length);
+            ESP_LOGI(TAG, "Resolved hostname %s to IP %s", HOST, inet_ntoa(dest_addr.sin_addr));
+        } else {
+            ESP_LOGE(TAG, "Failed to resolve TCP target host: %s", HOST);
+            return;
+        }
+    }
+    int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+    if (sock < 0) {
+        ESP_LOGE(TAG, "Unable to create TCP socket for %s (errno=%d: %s)", HOST, errno, strerror(errno));
+        return;
+    }
+    if (connect(sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr)) < 0) {
+        ESP_LOGE(TAG, "TCP connect failed to %s:%d (errno=%d: %s)", HOST, PORT, errno, strerror(errno));
+        close(sock);
+        return;
+    }
+    int sent = send(sock, payload, strlen(payload), 0);
+    if (sent < 0) {
+        ESP_LOGE(TAG, "TCP send failed to %s:%d (errno=%d: %s)", HOST, PORT, errno, strerror(errno));
+    } else {
+        ESP_LOGI(TAG, "TCP packet sent to %s:%d (%d bytes)", HOST, PORT, sent);
+    }
+    close(sock);
+}
+#endif
 
 // Initializes WiFi in station mode and waits for connection
 static void wifi_init_sta(void) {
@@ -272,7 +325,11 @@ static void sensor_udp_task(void *pvParameters) {
             snprintf(udp_payload, sizeof(udp_payload),
                 "{\"temp\":%.2f,\"hum\":%.2f,\"caqi\":%u,\"tvoc\":%u,\"eco2\":%u,\"id\":\"%s\"}",
                 temperature, humidity, caqi, air_data.tvoc, air_data.eco2, mac_id);
+#if PROTOCOL_USE_TCP
+            tcp_send_sensor_data(udp_payload);
+#else
             udp_send_sensor_data(udp_payload);
+#endif
         }
         // Print WiFi info every 10 seconds
         if (++print_wifi_info_counter >= 5) { // 5*2s = 10s

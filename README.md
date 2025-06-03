@@ -4,62 +4,65 @@
 
 This project initially started with Concept 3, but was later upgraded to Concept 4 for improved scalability and real-world deployment. You can find visual diagrams for each concept in the `concepts/` folder.  
 
-### Concept 1  
-// TODO: User, please add a brief description of Concept 1 here.  
-
-### Concept 2  
-// TODO: User, please add a brief description of Concept 2 here.  
-
 ### Concept 3 (Initial Design)  
 - ESP32 sensor nodes collect environmental data and send it directly to a central server or broker.  
 - Centralized approach, but less scalable for distributed, real-world deployments where each node is in a different home.  
 
 ### Concept 4 (Final Design)  
-- Each ESP32 sensor node is paired with a Raspberry Pi gateway (Raspberry Pi 1) in a home.  
-- Sensor data is sent via UDP from ESP32 to the local Raspberry Pi 1.  
-- Raspberry Pi 1 uses DDNS and port forwarding to act as a gateway, publishing data to a remote MQTT broker.  
-- A second Raspberry Pi (Raspberry Pi 2) subscribes to the MQTT broker, writes data to a remote database, and hosts a web server for visualization.  
-- This distributed, gateway-based approach is more robust and scalable for real-world, multi-home deployments.  
+- Multiple ESP32 sensor nodes all send data to a single central Raspberry Pi gateway (Raspberry Pi 1).
+- Sensor data is sent via UDP from ESP32 nodes to the Raspberry Pi 1 gateway.
+- Raspberry Pi 1 acts as a central gateway, collecting data from all ESP32 nodes and publishing consolidated data to a remote MQTT broker.
+- A second Raspberry Pi (Raspberry Pi 2) subscribes to the MQTT broker, writes data to a remote database, and hosts a web server for visualization.
+- This centralized gateway approach is efficient for collecting data from multiple sensor nodes while reducing the complexity of having multiple gateways.  
 
 **Why Concept 4?**  
-- Concept 4 was chosen because it allows each ESP32 node to be deployed in a different home, with a local gateway (Raspberry Pi 1) handling connectivity and security via DDNS and port forwarding. This makes the system scalable, secure, and suitable for real-world use where direct access to each ESP32 from the internet is not feasible.  
+- Concept 4 was chosen because it provides a centralized collection point (Raspberry Pi 1) for all ESP32 sensor data, with the gateway handling connectivity and security to the MQTT broker. This approach simplifies the architecture while still being scalable and secure for monitoring multiple sensor locations.  
 
-This repository implements a distributed IoT system for environmental sensing and data collection, based on Concept 4. The system is designed for real-world deployment, with each ESP32 sensor node and Raspberry Pi gateway located in different homes, using DDNS and port forwarding for remote connectivity. The architecture includes ESP32-C3 Super Mini boards, environmental sensors, two Raspberry Pi devices, a remote MQTT broker, and a remote database server.  
+This repository implements an IoT system for environmental sensing and data collection, based on Concept 4. The system collects environmental measurements from ESP32 nodes every 10 seconds and sends them via UDP to a central Raspberry Pi 1 gateway. The gateway adds timestamps to the data and forwards it to a remote MQTT broker every 2 seconds in batched updates. The architecture includes ESP32-C3 Super Mini boards with environmental sensors, a central Raspberry Pi gateway, a data aggregator Raspberry Pi, a remote MQTT broker, and an InfluxDB database server.  
 
 ## System Overview  
 
 - **ESP32 Sensor Nodes** (PlatformIO projects in `platformio/`):  
   - Hardware: ESP32-C3 Super Mini boards  
   - Sensors: AHT20 (temperature/humidity), ENS160 (air quality/CO2/TVOC)  
-  - Each ESP32 node is deployed in a separate home, collecting local environmental data.  
-  - Sensor data is sent via UDP to a Raspberry Pi gateway (Raspberry Pi 1) in the same home.  
+  - Multiple ESP32 nodes deployed in different locations, collecting environmental data.  
+  - Sensor data is sent via UDP every 10 seconds to a central Raspberry Pi gateway (Raspberry Pi 1).  
+  - The ESP32 nodes don't include timestamps in their data; timestamps are added by the gateway.  
 
-- **Raspberry Pi 1 (raspberry1) – Home Gateway**:  
-  - Runs a UDP server to receive sensor data from the local ESP32 node (see `platformio/wifi_mqtt_test_concept4/udp_server_raspi_example.py`).  
-  - Uses Dynamic DNS (DDNS) and port forwarding to be accessible from outside the home network.  
-  - Acts as a gateway: receives UDP packets, parses them, and publishes the data to a remote MQTT broker.  
+- **Raspberry Pi 1 (raspberry1) – Central Gateway**:  
+  - Runs a UDP server to receive sensor data from all ESP32 nodes (see `raspberry1/udp_to_mqtt.py`).  
+  - Acts as a central collection point, consolidating data from multiple sensor nodes.  
+  - Adds Unix timestamps (in nanoseconds) to incoming sensor data.
+  - Processes and formats the sensor data before publishing to a remote MQTT broker on topic "iot/team19".
+  - Publishes updates to the MQTT broker every 2 seconds with batched data.
   - Example scripts and templates are in the `raspberry1/` folder, including class examples for MQTT publishing.  
 
 - **Remote MQTT Broker**:  
-  - Hosted on a remote server (cloud or university server).  
-  - Receives published sensor data from all Raspberry Pi 1 gateways (from different homes).  
-  - Forwards data to all subscribers, including Raspberry Pi 2 and other clients.  
+  - Hosted on a server at IP address 194.177.207.38, port 1883.  
+  - Receives consolidated sensor data from all ESP32 nodes via the central Raspberry Pi gateway.  
+  - Forwards data to all subscribers, primarily the Raspberry Pi 2 using topic "iot/team19".  
 
 - **Raspberry Pi 2 (raspberry2) – Remote Data Aggregator**:  
-  - Subscribes to the remote MQTT broker to receive sensor data from all homes.  
-  - Saves incoming data to a remote database (e.g., InfluxDB) for long-term storage and analysis.  
-  - Hosts a web server to visualize or provide access to the stored data.  
-  - Example scripts for MQTT-to-DB and web server are in the `raspberry2/` folder.  
+  - Subscribes to the remote MQTT broker to receive sensor data from all ESP32 nodes.  
+  - Saves incoming data to an InfluxDB database for long-term storage and analysis.  
+  - Hosts a Grafana web server to visualize and monitor the collected sensor data.  
+  - Core scripts include `mqtt_to_influx.py` for data collection and storage in the `raspberry2/` folder.  
 
-- **Remote Database Server**:  
-  - Stores all sensor data received via MQTT.  
-  - Can be queried by the web server for visualization and analytics.  
+- **InfluxDB Database Server**:  
+  - Located at IP address 194.177.207.38, port 8086.
+  - Stores all sensor data received via MQTT in the "team19_db" database.
+  - Provides time-series database capabilities for the Grafana visualization platform.  
 
 ## Deployment Details  
 
-- **DDNS & Port Forwarding**: Each Raspberry Pi 1 uses a DDNS service (e.g., DuckDNS, No-IP) and router port forwarding to allow ESP32 nodes to send UDP packets from anywhere, and to enable remote management.  
-- **Distributed Homes**: Each ESP32 and Raspberry Pi 1 pair is installed in a different home, enabling a scalable, multi-location sensor network.  
-- **Security**: Ensure strong passwords and secure port forwarding on all home routers.  
+- **Network Configuration**: The Raspberry Pi 1 gateway listens on UDP port 8080 to receive data from all ESP32 nodes.
+- **ESP32 Configuration**: Each ESP32 node is configured with the hostname "team19pi.ddns.net" as the UDP target and sends data every 10 seconds.
+- **Data Collection**: The ESP32 nodes collect temperature, humidity, air quality (CAQI), TVOC, and eCO2 measurements.
+- **Data Flow**: 
+  1. ESP32 nodes send data to Raspberry Pi 1 via UDP
+  2. Raspberry Pi 1 adds timestamps and forwards to MQTT broker every 2 seconds
+  3. Raspberry Pi 2 stores data in InfluxDB and visualizes with Grafana
+- **Security**: Using "team19" credentials for MQTT and database access with proper authentication.  
 
 ## Folder Structure  
 - `platformio/` - ESP32 firmware projects (sensor, LED, WiFi/MQTT/UDP examples)  
@@ -68,21 +71,60 @@ This repository implements a distributed IoT system for environmental sensing an
 - `pymakr/` - MicroPython projects for ESP32 (optional/legacy)  
 - `concepts/` - Project concept images and documentation  
 
+## Helper Scripts
+The repository includes several shell scripts to help with common tasks:
+
+- `run_raspi_python.sh` - Interactive script to run the appropriate Python service based on which Raspberry Pi you're using:
+  - For Raspberry Pi 1: Runs the UDP-to-MQTT gateway service
+  - For Raspberry Pi 2: Runs the MQTT-to-InfluxDB service
+  - Automatically runs `update.sh` and `venv.sh` first for a seamless setup
+
+- `update.sh` - Simple Git script to pull the latest changes from the main branch, keeping your local repository in sync with the remote
+
+- `venv.sh` - Python virtual environment management script that:
+  - Creates a Python virtual environment if one doesn't exist
+  - Activates the virtual environment
+  - Updates pip to the latest version
+  - Installs all dependencies from requirements.txt
+  - Optionally runs a specified Python script with the proper environment
+
+- `git-clone-replace.sh` - Utility for replacing the current repository with a fresh clone (useful for resolving Git conflicts)
+
 ## Getting Started  
 1. **ESP32 Nodes**: Flash the appropriate firmware from `platformio/` to your ESP32-C3 Super Mini boards. Connect AHT20 and ENS160 sensors as described in the project documentation.  
-2. **Raspberry Pi 1**: Set up DDNS and port forwarding. Run the UDP server and MQTT publisher scripts from `raspberry1/`.  
-3. **MQTT Broker**: Set up a remote MQTT broker (e.g., Mosquitto, HiveMQ) accessible to all Raspberry Pis and the remote server.  
-4. **Raspberry Pi 2**: Run the MQTT subscriber, database writer, and web server scripts from `raspberry2/`.  
-5. **Remote Database**: Ensure the remote database server (e.g., InfluxDB) is running and accessible.  
+2. **Raspberry Pi 1**: Set up the central gateway to listen on UDP port 8080. Run the UDP server and MQTT publisher scripts:
+   ```bash
+   # Option 1: Using helper script (recommended)
+   ./run_raspi_python.sh  # Then select option 1 when prompted
+
+   # Option 2: Direct execution
+   python raspberry1/udp_to_mqtt.py
+   ```
+   This will listen for UDP packets, add timestamps, and publish to the MQTT broker every 2 seconds.
+
+3. **MQTT Broker**: Ensure the MQTT broker at 194.177.207.38:1883 is accessible to both Raspberry Pi devices.  
+4. **Raspberry Pi 2**: Run the MQTT subscriber, database writer, and web server scripts:
+   ```bash
+   # Option 1: Using helper script (recommended)
+   ./run_raspi_python.sh  # Then select option 2 when prompted
+
+   # Option 2: Direct execution
+   python raspberry2/mqtt_to_influx.py
+   ```
+
+5. **InfluxDB Database**: Ensure the InfluxDB server at 194.177.207.38:8086 is running and accessible.  
 
 See the README files in each subfolder for detailed setup and usage instructions. Refer to the class example scripts in `raspberry1/class_examples/` for MQTT publishing and other utilities.  
 
 ## Requirements  
 - ESP32-C3 Super Mini boards with AHT20 and ENS160 sensors  
-- Two Raspberry Pi devices (or similar Linux SBCs)  
-- DDNS service and router port forwarding for each home gateway  
-- Remote MQTT broker  
-- Remote database server (e.g., InfluxDB)  
+- Two Raspberry Pi devices (or similar Linux SBCs):
+  - Raspberry Pi 1: For the central UDP gateway and MQTT publishing
+  - Raspberry Pi 2: For MQTT subscription, database writing, and visualization
+- Network connectivity between all ESP32 nodes and the central gateway
+- MQTT broker at 194.177.207.38:1883 with "team19" credentials
+- InfluxDB database server at 194.177.207.38:8086 with "team19_db" database
+- Grafana visualization platform
 - Python 3.x (for Raspberry Pi scripts)  
 - PlatformIO (for ESP32 firmware)  
 

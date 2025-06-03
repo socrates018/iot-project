@@ -25,7 +25,8 @@ This design is scalable (works for 4 or 100+ ESPs), efficient, and easy to integ
 """
 
 # --- Configuration Defines ---
-UDP_PORT = 8080  # UDP port to listen on (must match ESP32 sender)
+USE_TCP = False  # Set to True to listen for TCP instead of UDP
+UDP_PORT = 8080  # UDP/TCP port to listen on (must match ESP32 sender)
 MQTT_BROKER = "194.177.207.38"  # MQTT broker address
 MQTT_PORT = 1883  # MQTT broker port
 MQTT_CLIENT_ID = "team19_pi_gateway"  # MQTT client ID for this gateway
@@ -143,6 +144,29 @@ def udp_receive_loop(sock, udp_queue):
         except Exception as e:
             print(f"Error processing message: {e}")
 
+# TCP receive loop (threaded, similar to UDP)
+def tcp_receive_loop(sock, udp_queue):
+    while True:
+        conn, addr = sock.accept()
+        with conn:
+            data = conn.recv(1024)
+            print(f"[DEBUG] TCP packet received from {addr}: {data!r}")
+            try:
+                message = data.decode().strip()
+                json_data = json.loads(message)
+                device_id = json_data.get("id", None)
+                if device_id:
+                    json_data["timestamp"] = int(time.time_ns())
+                    latest_readings[device_id] = json_data
+                    print(f"Updated reading for {device_id}: {json_data}")
+                    udp_queue.put((device_id, json_data))
+                else:
+                    print(f"No 'id' in message: {json_data}")
+            except json.JSONDecodeError:
+                print(f"Non-JSON message from {addr}: {message}")
+            except Exception as e:
+                print(f"Error processing message: {e}")
+
 def check_mqtt_password(broker, port, username, password):
     """
     Returns True if MQTT credentials are correct (can connect), False otherwise.
@@ -171,23 +195,36 @@ def main():
         print("Wrong MQTT password. Exiting.")
         return
 
-    # Initialize UDP socket and print info before anything else
+    # Initialize socket and print info before anything else
     UDP_IP = get_local_ip()  # Automatically detect local WiFi IP
-    print(f"[INFO] UDP listener starting on {UDP_IP}:{UDP_PORT}...")
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.bind((UDP_IP, UDP_PORT))
-    print(f"[INFO] UDP socket bound. Waiting for packets...")
-
-    # Start MQTT client in background
-    global mqtt_client
-    mqtt_client = setup_mqtt()
-
-    # Start MQTT publish worker thread
-    mqtt_worker = MQTTPublishWorker(mqtt_client, udp_queue)
-    mqtt_worker.start()
-
-    # Start UDP receive loop in main thread (blocking)
-    udp_receive_loop(sock, udp_queue)
+    proto = "TCP" if USE_TCP else "UDP"
+    print(f"[INFO] {proto} listener starting on {UDP_IP}:{UDP_PORT}...")
+    if USE_TCP:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind((UDP_IP, UDP_PORT))
+        sock.listen(5)
+        print(f"[INFO] TCP socket bound. Waiting for connections...")
+        # Start MQTT client in background
+        global mqtt_client
+        mqtt_client = setup_mqtt()
+        # Start MQTT publish worker thread
+        mqtt_worker = MQTTPublishWorker(mqtt_client, udp_queue)
+        mqtt_worker.start()
+        # Start TCP receive loop in main thread (blocking)
+        tcp_receive_loop(sock, udp_queue)
+    else:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.bind((UDP_IP, UDP_PORT))
+        print(f"[INFO] UDP socket bound. Waiting for packets...")
+        # Start MQTT client in background
+        global mqtt_client
+        mqtt_client = setup_mqtt()
+        # Start MQTT publish worker thread
+        mqtt_worker = MQTTPublishWorker(mqtt_client, udp_queue)
+        mqtt_worker.start()
+        # Start UDP receive loop in main thread (blocking)
+        udp_receive_loop(sock, udp_queue)
 
 if __name__ == "__main__":
     main()

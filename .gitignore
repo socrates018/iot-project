@@ -49,3 +49,10 @@ htmlcov/
 # Ignore secrets/configs (uncomment and edit as needed)
 # .env
 # config.json
+
+# YAML files and associated artifacts
+*.yaml
+*.yml
+*.yamllint
+*.yamllint.yaml
+*.yamllint.yml
