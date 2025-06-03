@@ -1,5 +1,64 @@
-.pio
-.vscode/.browse.c_cpp.db*
-.vscode/c_cpp_properties.json
-.vscode/launch.json
-.vscode/ipch
+# PlatformIO
+.pio/
+
+# VSCode
+.vscode/
+
+# CMake/ESP-IDF build artifacts
+build/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+sdkconfig.old
+sdkconfig
+sdkconfig.*
+*.elf
+*.bin
+*.map
+*.pyc
+*.pyo
+*.pyd
+*.o
+*.obj
+*.a
+*.d
+*.gcda
+*.gcno
+*.gcov
+*.orig
+*.swp
+*.swo
+*.DS_Store
+*.log
+*.tmp
+*.bak
+*.user
+*.sublime-workspace
+*.sublime-project
+
+# IDE/Editor
+.browse.c_cpp.db*
+c_cpp_properties.json
+launch.json
+ipch
+
+# Dependency lock
+__pycache__/
+
+# Misc
+*.env
+*.code-workspace
+
+# Ignore managed_components cache
+managed_components/*/test_apps/
+managed_components/*/docs/
+
+# Ignore test output
+/test/*.log
+/test/*.tmp
+
+# Ignore lib/README if not needed
+lib/README
+
+test/README
