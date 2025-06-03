@@ -190,6 +190,7 @@ def check_mqtt_password(broker, port, username, password):
     return result[0]
 
 def main():
+    global mqtt_client
     # Check MQTT password before starting anything else
     if not check_mqtt_password(MQTT_BROKER, MQTT_PORT, MQTT_USERNAME, MQTT_PASSWORD):
         print("Wrong MQTT password. Exiting.")
@@ -206,7 +207,6 @@ def main():
         sock.listen(5)
         print(f"[INFO] TCP socket bound. Waiting for connections...")
         # Start MQTT client in background
-        global mqtt_client
         mqtt_client = setup_mqtt()
         # Start MQTT publish worker thread
         mqtt_worker = MQTTPublishWorker(mqtt_client, udp_queue)
@@ -218,7 +218,6 @@ def main():
         sock.bind((UDP_IP, UDP_PORT))
         print(f"[INFO] UDP socket bound. Waiting for packets...")
         # Start MQTT client in background
-        global mqtt_client
         mqtt_client = setup_mqtt()
         # Start MQTT publish worker thread
         mqtt_worker = MQTTPublishWorker(mqtt_client, udp_queue)
