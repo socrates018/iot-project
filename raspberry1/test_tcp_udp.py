@@ -55,12 +55,14 @@ def udp_client():
     port = int(input("Enter server port to send to: ").strip())
     print(f"[DEBUG] Sending to UDP server at {host}:{port}")
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-        message = os.urandom(70)  # 70 bytes
-        print(f'Sending 70 bytes of data in UDP packet')
-        s.sendto(message, (host, port))
-        print(f"[DEBUG] Sent 70 bytes to UDP server at {host}:{port}")
-        data, addr = s.recvfrom(1024)
-        print(f'Received from {addr}: {data.decode(errors="replace")}')
+        try:
+            message = os.urandom(70)  # 70 bytes
+            print(f'Sending 70 bytes of data in UDP packet')
+            s.sendto(message, (host, port))
+            print(f"[DEBUG] Sent 70 bytes to UDP server at {host}:{port}")
+            print("[INFO] UDP client finished sending. No response expected.")
+        except KeyboardInterrupt:
+            print("\n[INFO] UDP client stopped by user.")
 
 # --- UDP Server Example ---
 def udp_server():
@@ -69,15 +71,15 @@ def udp_server():
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
         s.bind((HOST, PORT))
         print(f'UDP server listening on {HOST}:{PORT}')
-        while True:
-            data, addr = s.recvfrom(4096)
-            if not data:
-                break
-            print(f"[DEBUG] Datagram received from {addr}")
-            print(f'Received {len(data)} bytes from {addr}')
-            # Echo the received data back to the sender
-            s.sendto(data, addr)
-            print(f'Sent echo back to {addr}')
+        try:
+            while True:
+                data, addr = s.recvfrom(4096)
+                if not data:
+                    break
+                print(f"[DEBUG] Datagram received from {addr}")
+                print(f'Received {len(data)} bytes from {addr}')
+        except KeyboardInterrupt:
+            print("\n[INFO] UDP server stopped by user.")
 
 if __name__ == "__main__":
     print("Choose protocol:")
