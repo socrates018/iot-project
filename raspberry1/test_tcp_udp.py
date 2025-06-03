@@ -69,25 +69,15 @@ def udp_server():
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
         s.bind((HOST, PORT))
         print(f'UDP server listening on {HOST}:{PORT}')
-        received = 0
-        chunks = []
-        to_receive = 10 * 1024 * 1024  # 10MB
-        addr = None
-        while received < to_receive:
-            chunk, addr = s.recvfrom(4096)
-            if not chunk:
+        while True:
+            data, addr = s.recvfrom(4096)
+            if not data:
                 break
-            chunks.append(chunk)
-            received += len(chunk)
-        print(f"[DEBUG] Datagram received from {addr}")
-        print(f'Received {received} bytes from {addr}')
-        # Generate random 10MB message
-        response = os.urandom(10 * 1024 * 1024)
-        # Send in chunks
-        chunk_size = 1400
-        for i in range(0, len(response), chunk_size):
-            s.sendto(response[i:i+chunk_size], addr)
-        print(f'Sent 10MB of data')
+            print(f"[DEBUG] Datagram received from {addr}")
+            print(f'Received {len(data)} bytes from {addr}')
+            # Echo the received data back to the sender
+            s.sendto(data, addr)
+            print(f'Sent echo back to {addr}')
 
 if __name__ == "__main__":
     print("Choose protocol:")
