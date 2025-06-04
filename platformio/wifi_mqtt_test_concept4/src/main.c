@@ -52,6 +52,9 @@
 #define NEOPIXEL_GPIO 8
 #define NUM_PIXELS    1
 
+// LED intensity (0-255)
+#define LED_INTENSITY 5
+
 // Sensor send interval (in seconds)
 #define SENSOR_SEND_INTERVAL_SEC 10
 #define SENSOR_SEND_INTERVAL_MS (SENSOR_SEND_INTERVAL_SEC * 1000)
@@ -278,6 +281,10 @@ static void sensor_udp_task(void *pvParameters) {
             case 5: r = 255; g = 0; b = 0; break;
             default: r = 255; g = 255; b = 255; break;
         }
+        // Scale color by LED_INTENSITY
+        r = (r * LED_INTENSITY) / 255;
+        g = (g * LED_INTENSITY) / 255;
+        b = (b * LED_INTENSITY) / 255;
         led_strip_clear(strip);
         led_strip_set_pixel(strip, 0, r, g, b);
         led_strip_refresh(strip);
