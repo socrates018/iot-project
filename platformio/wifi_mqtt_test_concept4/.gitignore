@@ -53,6 +53,7 @@ __pycache__/
 # Ignore managed_components cache
 managed_components/*/test_apps/
 managed_components/*/docs/
+managed_components/
 
 # Ignore test output
 /test/*.log
@@ -62,3 +63,5 @@ managed_components/*/docs/
 lib/README
 
 test/README
+
+dependencies.lock
