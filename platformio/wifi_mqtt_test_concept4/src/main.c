@@ -24,8 +24,9 @@
 #include <netdb.h>
 
 // UDP configuration
-// #define HOST   "team19pi.ddns.net"//"192.168.1.9"
-#define HOST   "kaltsas123.dyndns.org"
+#define HOST   "team19pi.ddns.net"//"192.168.1.9"
+// #define HOST   "kaltsas123.dyndns.org"
+// #define HOST   "192.168.1.179"
 // #define PORT   65431
 #define PORT   8080
 
@@ -37,6 +38,8 @@
 #define WIFI_PASS "4tu3a8fesnptt7n5"
 // #define WIFI_SSID "1"
 // #define WIFI_PASS "minecraft123"
+// #define WIFI_SSID "RUT200_536B"
+// #define WIFI_PASS "IceAge21!"
 
 // Optionally override the last 3 bytes of the MAC address for device ID
 #define USE_VIRTUAL_MAC 0
@@ -312,8 +315,9 @@ static void sensor_udp_task(void *pvParameters) {
           {"temp":23.45,"hum":56.78,"caqi":2,"tvoc":123,"eco2":456,"id":"AABBCC"}
         This format is simple, compact, and easy to parse on the server side.
         */
-        // Only send if both are valid
-        if (valid_aht20 && valid_ens160) {
+        // Only send if both are valid and WiFi is connected
+        EventBits_t bits = xEventGroupGetBits(s_wifi_event_group);
+        if (valid_aht20 && valid_ens160 && (bits & WIFI_CONNECTED_BIT)) {
             char udp_payload[128];
             snprintf(udp_payload, sizeof(udp_payload),
                 "{\"temp\":%.2f,\"hum\":%.2f,\"caqi\":%u,\"tvoc\":%u,\"eco2\":%u,\"id\":\"%s\"}",
@@ -323,18 +327,23 @@ static void sensor_udp_task(void *pvParameters) {
 #else
             udp_send_sensor_data(udp_payload);
 #endif
+        } else if (valid_aht20 && valid_ens160) {
+            ESP_LOGI(TAG, "WiFi not connected, not sending data. Sensor values: temp=%.2f, hum=%.2f, caqi=%u, tvoc=%u, eco2=%u, id=%s", temperature, humidity, caqi, air_data.tvoc, air_data.eco2, mac_id);
         }
         // Print WiFi info every 10 seconds
         if (++print_wifi_info_counter >= 5) { // 5*2s = 10s
             esp_netif_ip_info_t ip_info;
             esp_netif_t *netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
-            if (netif && esp_netif_get_ip_info(netif, &ip_info) == ESP_OK) {
+            EventBits_t bits = xEventGroupGetBits(s_wifi_event_group);
+            if ((bits & WIFI_CONNECTED_BIT) && netif && esp_netif_get_ip_info(netif, &ip_info) == ESP_OK) {
                 wifi_ap_record_t ap_info;
                 if (esp_wifi_sta_get_ap_info(&ap_info) == ESP_OK) {
                     ESP_LOGI(TAG, "WiFi: IP %s | RSSI %d dBm | Channel %d", ip4addr_ntoa((const ip4_addr_t *)&ip_info.ip), ap_info.rssi, ap_info.primary);
                 } else {
                     ESP_LOGI(TAG, "WiFi: IP %s", ip4addr_ntoa((const ip4_addr_t *)&ip_info.ip));
                 }
+            } else {
+                ESP_LOGW(TAG, "No WiFi connection");
             }
             print_wifi_info_counter = 0;
         }
