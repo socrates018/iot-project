@@ -51,8 +51,8 @@ __pycache__/
 *.code-workspace
 
 # Ignore managed_components cache
-managed_components/*/test_apps/
-managed_components/*/docs/
+# managed_components/*/test_apps/
+# managed_components/*/docs/
 managed_components/
 
 # Ignore test output
