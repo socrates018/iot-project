@@ -1,5 +1,6 @@
 import socket
 import os
+import time
 
 def get_port_for_local_ip():
     # Prompt user for port only; always bind to 0.0.0.0 for server
@@ -64,6 +65,25 @@ def udp_client():
         except KeyboardInterrupt:
             print("\n[INFO] UDP client stopped by user.")
 
+# --- UDP Flood Client Example ---
+def udp_flood_client():
+    host = input("Enter server IP to send to: ").strip()
+    port = int(input("Enter server port to send to: ").strip())
+    interval = float(input("Enter interval between packets in seconds (e.g., 0.01): ").strip())
+    print(f"[DEBUG] Flooding UDP server at {host}:{port} with interval {interval}s")
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+        try:
+            count = 0
+            while True:
+                message = os.urandom(70)  # 70 bytes
+                s.sendto(message, (host, port))
+                count += 1
+                if count % 100 == 0:
+                    print(f"Sent {count} packets...")
+                time.sleep(interval)
+        except KeyboardInterrupt:
+            print(f"\n[INFO] UDP flood client stopped by user after sending {count} packets.")
+
 # --- UDP Server Example ---
 def udp_server():
     PORT, HOST = get_port_for_local_ip()
@@ -100,11 +120,14 @@ if __name__ == "__main__":
         print("Choose mode:")
         print("1. Run as server (wait for datagram)")
         print("2. Send to remote server")
-        choice = input("Enter 1 for server, 2 for client: ").strip()
+        print("3. UDP flood (send packets very fast)")
+        choice = input("Enter 1 for server, 2 for client, 3 for flood: ").strip()
         if choice == '1':
             udp_server()
         elif choice == '2':
             udp_client()
+        elif choice == '3':
+            udp_flood_client()
         else:
             print("Invalid choice.")
     else:
