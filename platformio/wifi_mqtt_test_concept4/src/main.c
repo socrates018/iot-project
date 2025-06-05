@@ -39,7 +39,7 @@
 
 // Optionally override the last 3 bytes of the MAC address for device ID
 #define USE_VIRTUAL_MAC 0
-#define VIRTUAL_MAC_ID "A1B2C3" // Set to desired 6-char hex string if USE_VIRTUAL_MAC is 1
+#define VIRTUAL_MAC_ID "A1B2C3"
 
 // I2C configuration for driver_ng
 #define I2C_MASTER_SCL_IO           9
@@ -62,7 +62,7 @@ static EventGroupHandle_t s_wifi_event_group;
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_FAIL_BIT      BIT1
 
-static const char *TAG = "SENSOR_UDP";
+static const char *TAG = "DEBUG";
 
 // WiFi event handler: Handles WiFi and IP events for connection management
 static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
@@ -87,7 +87,7 @@ static void tcp_send_sensor_data(const char *payload) {
     memset(&dest_addr, 0, sizeof(dest_addr));
     dest_addr.sin_family = AF_INET;
     dest_addr.sin_port = htons(PORT);
-    struct hostent *he = gethostbyname(HOST);
+    const struct hostent *he = gethostbyname(HOST);
     if (!he || he->h_addrtype != AF_INET || he->h_length != 4) {
         printf("Failed to resolve TCP target host\n");
         return;
@@ -119,7 +119,7 @@ static void udp_send_sensor_data(const char *payload) {
     memset(&dest_addr, 0, sizeof(dest_addr));
     dest_addr.sin_family = AF_INET;
     dest_addr.sin_port = htons(PORT);
-    struct hostent *he = gethostbyname(HOST);
+    const struct hostent *he = gethostbyname(HOST);
     if (!he || he->h_addrtype != AF_INET || he->h_length != 4) {
         printf("Failed to resolve UDP target host\n");
         return;
@@ -337,14 +337,13 @@ void app_main() {
 #endif
     int print_wifi_info_counter = 0;
     float temperature = 0.0f, humidity = 0.0f;
-    bool valid_aht20 = false, valid_ens160 = false;
     uint32_t last_send_time = xTaskGetTickCount();
     while (1) {
         ens160_air_quality_data_t air_data;
         uint8_t caqi = 0;
-        valid_ens160 = read_ens160(ens160_handle, &air_data, &caqi);
+        bool valid_ens160 = read_ens160(ens160_handle, &air_data, &caqi);
         set_led_color(led_strip, caqi);
-        valid_aht20 = read_aht20(aht20_handle, &temperature, &humidity, ens160_handle);
+        bool valid_aht20 = read_aht20(aht20_handle, &temperature, &humidity, ens160_handle);
         EventBits_t bits = xEventGroupGetBits(s_wifi_event_group);
         uint32_t now = xTaskGetTickCount();
         if (now - last_send_time >= (SENSOR_SEND_INTERVAL_SEC * 1000 / portTICK_PERIOD_MS)) {
