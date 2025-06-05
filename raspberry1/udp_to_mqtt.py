@@ -59,6 +59,14 @@ if not MQTT_PASSWORD:
     with open(ENV_PATH, 'w') as f:
         f.write(f"MQTT_PASSWORD={MQTT_PASSWORD}\n")
 
+print("[DEBUG] Current working directory:", os.getcwd())
+print("[DEBUG] ENV_PATH:", ENV_PATH)
+if os.path.exists(ENV_PATH):
+    with open(ENV_PATH) as f:
+        print("[DEBUG] .env contents:", f.read())
+else:
+    print("[DEBUG] .env file NOT FOUND at:", ENV_PATH)
+
 # Helper function to get the local WiFi IP address
 def get_local_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
