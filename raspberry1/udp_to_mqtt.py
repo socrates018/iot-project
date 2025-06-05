@@ -203,7 +203,8 @@ def main():
     # Check MQTT password before starting anything else
     if not check_mqtt_password(MQTT_BROKER, MQTT_PORT, MQTT_USERNAME, MQTT_PASSWORD):
         print("Wrong MQTT password. Exiting.")
-        return
+        import sys
+        sys.exit(1)
 
     # Initialize socket and print info before anything else
     UDP_IP = get_local_ip()  # Automatically detect local WiFi IP

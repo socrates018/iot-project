@@ -23,9 +23,11 @@ After=network.target
 
 [Service]
 Type=simple
+ExecStartPre=/bin/sleep 10
 ExecStart=${PYTHON_PATH} ${SCRIPT_PATH}
 WorkingDirectory=${PROJECT_ROOT}
 Restart=on-failure
+RestartSec=10
 User=$(whoami)
 
 [Install]
