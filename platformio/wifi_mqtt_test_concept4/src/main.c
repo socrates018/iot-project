@@ -337,24 +337,27 @@ void app_main() {
 #endif
     int print_wifi_info_counter = 0;
     float temperature = 0.0f, humidity = 0.0f;
+    uint8_t caqi = 0;
     uint32_t last_send_time = xTaskGetTickCount();
     while (1) {
         ens160_air_quality_data_t air_data;
-        uint8_t caqi = 0;
         bool valid_ens160 = read_ens160(ens160_handle, &air_data, &caqi);
-        set_led_color(led_strip, caqi);
         bool valid_aht20 = read_aht20(aht20_handle, &temperature, &humidity, ens160_handle);
         EventBits_t bits = xEventGroupGetBits(s_wifi_event_group);
         uint32_t now = xTaskGetTickCount();
-        if (now - last_send_time >= (SENSOR_SEND_INTERVAL_SEC * 1000 / portTICK_PERIOD_MS)) {
-            if (valid_aht20 && valid_ens160 && (bits & WIFI_CONNECTED_BIT)) {
+        if ((bits & WIFI_CONNECTED_BIT) && valid_aht20 && valid_ens160) {
+            set_led_color(led_strip, caqi);
+            if (now - last_send_time >= (SENSOR_SEND_INTERVAL_SEC * 1000 / portTICK_PERIOD_MS)) {
                 send_sensor_json(temperature, humidity, caqi, air_data.tvoc, air_data.eco2, mac_id);
+                last_send_time = now;
             }
-            if (++print_wifi_info_counter >= 5) {
-                print_wifi_info();
-                print_wifi_info_counter = 0;
-            }
-            last_send_time = now;
+        } else {
+            set_led_color(led_strip, 5); // Red for error/alert
+        }
+        static uint32_t last_wifi_print = 0;
+        if (now - last_wifi_print >= (2 * SENSOR_SEND_INTERVAL_SEC * 1000 / portTICK_PERIOD_MS)) {
+            print_wifi_info();
+            last_wifi_print = now;
         }
         vTaskDelay(pdMS_TO_TICKS(100));
     }
