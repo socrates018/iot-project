@@ -355,7 +355,7 @@ void app_main() {
     snprintf(mac_id, sizeof(mac_id), "%02X%02X%02X", mac[3], mac[4], mac[5]);
 #endif
     float temperature = 0.0f, humidity = 0.0f;
-    uint8_t caqi = 0;
+    uint8_t caqi = 6; // Default to 6 (invalid)
     uint32_t last_send_time = xTaskGetTickCount();
     while (1) {
         ens160_air_quality_data_t air_data;
