@@ -23,23 +23,19 @@
 #include "esp_netif.h"
 #include <netdb.h>
 
-// UDP configuration
-#define HOST   "team19pi.ddns.net"//"192.168.1.9"
-// #define HOST   "kaltsas123.dyndns.org"
-// #define HOST   "192.168.1.179"
-// #define PORT   65431
+// UDP/TCP Server configuration
+// #define HOST   "team19pi.ddns.net"//"192.168.1.9"
+#define HOST   "kaltsas123.dyndns.org"
 #define PORT   8080
 
 // Protocol selection: set PROTOCOL_USE_TCP to 1 for TCP, 0 for UDP
 #define PROTOCOL_USE_TCP 0
 
 // WiFi configuration
-#define WIFI_SSID "COSMOTE-203853"
-#define WIFI_PASS "4tu3a8fesnptt7n5"
-// #define WIFI_SSID "1"
-// #define WIFI_PASS "minecraft123"
-// #define WIFI_SSID "RUT200_536B"
-// #define WIFI_PASS "IceAge21!"
+// #define WIFI_SSID "COSMOTE-203853"
+// #define WIFI_PASS "4tu3a8fesnptt7n5"
+#define WIFI_SSID "1"
+#define WIFI_PASS "minecraft123"
 
 // Optionally override the last 3 bytes of the MAC address for device ID
 #define USE_VIRTUAL_MAC 0
@@ -60,7 +56,6 @@
 
 // Sensor send interval (in seconds)
 #define SENSOR_SEND_INTERVAL_SEC 10
-#define SENSOR_SEND_INTERVAL_MS (SENSOR_SEND_INTERVAL_SEC * 1000)
 
 // Event group for WiFi connection
 static EventGroupHandle_t s_wifi_event_group;
@@ -72,93 +67,74 @@ static const char *TAG = "SENSOR_UDP";
 // WiFi event handler: Handles WiFi and IP events for connection management
 static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
-        ESP_LOGI(TAG, "WiFi STA start event, connecting...");
+        printf("[WiFi] STA start event, connecting...\n");
         esp_wifi_connect();
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
-        ESP_LOGW(TAG, "WiFi disconnected, reconnecting...");
+        printf("[WiFi] Disconnected, reconnecting...\n");
         esp_wifi_connect();
         xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
-        ESP_LOGI(TAG, "WiFi got IP");
+        printf("[WiFi] Got IP\n");
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
     }
 }
 
-// Sends sensor data as a UDP packet to the configured host and port (now supports hostname or IP)
-#if !PROTOCOL_USE_TCP
-static void udp_send_sensor_data(const char *payload) {
-    // Print diagnostics before sending
-    ESP_LOGI(TAG, "Preparing to send UDP to %s:%d", HOST, PORT);
-    ESP_LOGI(TAG, "Payload: %s", payload);
-
+// Sends sensor data as a TCP packet to the configured host and port
+#if PROTOCOL_USE_TCP
+static void tcp_send_sensor_data(const char *payload) {
+    printf("Payload: %s\n", payload);
     struct sockaddr_in dest_addr;
     memset(&dest_addr, 0, sizeof(dest_addr));
     dest_addr.sin_family = AF_INET;
     dest_addr.sin_port = htons(PORT);
-
-    // Try to parse as IP, if fails, resolve as hostname
-    int pton_result = inet_pton(AF_INET, HOST, &dest_addr.sin_addr);
-    if (pton_result != 1) {
-        struct hostent *he = gethostbyname(HOST);
-        if (he && he->h_addrtype == AF_INET && he->h_length == 4) {
-            memcpy(&dest_addr.sin_addr, he->h_addr, he->h_length);
-            ESP_LOGI(TAG, "Resolved hostname %s to IP %s", HOST, inet_ntoa(dest_addr.sin_addr));
-        } else {
-            ESP_LOGE(TAG, "Failed to resolve UDP target host: %s", HOST);
-            return;
-        }
-    }
-    int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if (sock < 0) {
-        ESP_LOGE(TAG, "Unable to create UDP socket for %s (errno=%d: %s)", HOST, errno, strerror(errno));
+    struct hostent *he = gethostbyname(HOST);
+    if (!he || he->h_addrtype != AF_INET || he->h_length != 4) {
+        printf("Failed to resolve TCP target host\n");
         return;
     }
-    int sent = sendto(sock, payload, strlen(payload), 0, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
-    if (sent < 0) {
-        ESP_LOGE(TAG, "UDP send failed to %s:%d (errno=%d: %s)", HOST, PORT, errno, strerror(errno));
-    } else {
-        ESP_LOGI(TAG, "UDP packet sent to %s:%d (%d bytes)", HOST, PORT, sent);
-    }
-    close(sock);
-}
-#endif
-
-#if PROTOCOL_USE_TCP
-// Sends sensor data as a TCP packet to the configured host and port
-static void tcp_send_sensor_data(const char *payload) {
-    ESP_LOGI(TAG, "Preparing to send TCP to %s:%d", HOST, PORT);
-    ESP_LOGI(TAG, "Payload: %s", payload);
-
-    struct sockaddr_in dest_addr;
-    memset(&dest_addr, 0, sizeof(dest_addr));
-    dest_addr.sin_family = AF_INET;
-    dest_addr.sin_port = htons(PORT);
-    int pton_result = inet_pton(AF_INET, HOST, &dest_addr.sin_addr);
-    if (pton_result != 1) {
-        struct hostent *he = gethostbyname(HOST);
-        if (he && he->h_addrtype == AF_INET && he->h_length == 4) {
-            memcpy(&dest_addr.sin_addr, he->h_addr, he->h_length);
-            ESP_LOGI(TAG, "Resolved hostname %s to IP %s", HOST, inet_ntoa(dest_addr.sin_addr));
-        } else {
-            ESP_LOGE(TAG, "Failed to resolve TCP target host: %s", HOST);
-            return;
-        }
-    }
+    memcpy(&dest_addr.sin_addr, he->h_addr, he->h_length);
     int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
     if (sock < 0) {
-        ESP_LOGE(TAG, "Unable to create TCP socket for %s (errno=%d: %s)", HOST, errno, strerror(errno));
+        printf("Unable to create TCP socket\n");
         return;
     }
     if (connect(sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr)) < 0) {
-        ESP_LOGE(TAG, "TCP connect failed to %s:%d (errno=%d: %s)", HOST, PORT, errno, strerror(errno));
+        printf("TCP connect failed\n");
         close(sock);
         return;
     }
     int sent = send(sock, payload, strlen(payload), 0);
     if (sent < 0) {
-        ESP_LOGE(TAG, "TCP send failed to %s:%d (errno=%d: %s)", HOST, PORT, errno, strerror(errno));
+        printf("TCP send failed\n");
     } else {
-        ESP_LOGI(TAG, "TCP packet sent to %s:%d (%d bytes)", HOST, PORT, sent);
+        printf("TCP packet sent to %s:%d (%d bytes)\n", inet_ntoa(dest_addr.sin_addr), PORT, sent);
+    }
+    close(sock);
+}
+// Sends sensor data as a UDP packet to the configured host and port (now supports hostname or IP)
+#else
+static void udp_send_sensor_data(const char *payload) {
+    printf("Payload: %s\n", payload);
+    struct sockaddr_in dest_addr;
+    memset(&dest_addr, 0, sizeof(dest_addr));
+    dest_addr.sin_family = AF_INET;
+    dest_addr.sin_port = htons(PORT);
+    struct hostent *he = gethostbyname(HOST);
+    if (!he || he->h_addrtype != AF_INET || he->h_length != 4) {
+        printf("Failed to resolve UDP target host\n");
+        return;
+    }
+    memcpy(&dest_addr.sin_addr, he->h_addr, he->h_length);
+    int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (sock < 0) {
+        printf("Unable to create UDP socket\n");
+        return;
+    }
+    int sent = sendto(sock, payload, strlen(payload), 0, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
+    if (sent < 0) {
+        printf("UDP send failed\n");
+    } else {
+        printf("UDP packet sent to %s:%d (%d bytes)\n", inet_ntoa(dest_addr.sin_addr), PORT, sent);
     }
     close(sock);
 }
@@ -167,7 +143,7 @@ static void tcp_send_sensor_data(const char *payload) {
 // Initializes WiFi in station mode and waits for connection
 static void wifi_init_sta(void) {
     s_wifi_event_group = xEventGroupCreate();
-    ESP_LOGI(TAG, "Initializing network interfaces...");
+    printf("[WiFi] Initializing network interfaces...\n");
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
     esp_netif_create_default_wifi_sta();
@@ -186,13 +162,12 @@ static void wifi_init_sta(void) {
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
-    ESP_LOGI(TAG, "WiFi started, waiting for connection...");
+    printf("[WiFi] Started, waiting for connection...\n");
     EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group, WIFI_CONNECTED_BIT | WIFI_FAIL_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
     if (bits & WIFI_CONNECTED_BIT) {
-        ESP_LOGI(TAG, "Connected to WiFi: %s", WIFI_SSID);
-        // (Removed local IP/RSSI/channel print here; now printed periodically in sensor_udp_task)
+        printf("[WiFi] Connected to WiFi: %s\n", WIFI_SSID);
     } else {
-        ESP_LOGE(TAG, "WiFi connection failed");
+        printf("[WiFi] Connection failed\n");
     }
 }
 
@@ -210,13 +185,121 @@ esp_err_t i2c_master_bus_init_ng(i2c_master_bus_handle_t *bus_handle) {
     return i2c_new_master_bus(&bus_config, bus_handle);
 }
 
-// Task: Reads sensor data, updates LED, and sends data via UDP in a loop
-static void sensor_udp_task(void *pvParameters) {
-    led_strip_handle_t strip = (led_strip_handle_t)pvParameters;
+// Helper: Set LED color based on CAQI value
+static void set_led_color(led_strip_handle_t strip, uint8_t caqi) {
+    uint8_t r = 0, g = 0, b = 0;
+    switch (caqi) {
+        case 1: r = 0; g = 255; b = 0; break;
+        case 2: r = 255; g = 255; b = 0; break;
+        case 3: r = 255; g = 165; b = 0; break;
+        case 4: r = 128; g = 0; b = 128; break;
+        case 5: r = 255; g = 0; b = 0; break;
+        default: r = 255; g = 255; b = 255; break;
+    }
+    // Scale color by LED_INTENSITY
+    r = (r * LED_INTENSITY) / 255;
+    g = (g * LED_INTENSITY) / 255;
+    b = (b * LED_INTENSITY) / 255;
+    led_strip_clear(strip);
+    led_strip_set_pixel(strip, 0, r, g, b);
+    led_strip_refresh(strip);
+}
+
+// Helper: Read ENS160 sensor
+static bool read_ens160(ens160_handle_t ens160_handle, ens160_air_quality_data_t *air_data, uint8_t *caqi) {
+    if (ens160_get_measurement(ens160_handle, air_data) == ESP_OK &&
+        air_data->uba_aqi > 0 && air_data->tvoc > 0 && air_data->eco2 > 0) {
+        ens160_aqi_uba_row_t aqi_def = ens160_aqi_index_to_definition(air_data->uba_aqi);
+        printf("[ENS160] CAQI: %d (%s) | TVOC: %u ppb | eCO2: %u ppm\n",
+               air_data->uba_aqi, aqi_def.rating, air_data->tvoc, air_data->eco2);
+        *caqi = air_data->uba_aqi;
+        return true;
+    } else {
+        printf("[ENS160] Read error or invalid data\n");
+        *caqi = 0;
+        return false;
+    }
+}
+
+// Helper: Read AHT20 sensor
+static bool read_aht20(aht20_dev_handle_t aht20_handle, float *temperature, float *humidity, ens160_handle_t ens160_handle) {
+    if (aht20_read_float(aht20_handle, temperature, humidity) == ESP_OK) {
+        printf("[AHT20] Temperature: %.2f°C | Humidity: %.2f%%\n", *temperature, *humidity);
+        if (ens160_set_compensation_factors(ens160_handle, *temperature, *humidity) != ESP_OK) {
+            printf("[ENS160] Failed to set compensation factors\n");
+        }
+        return true;
+    } else {
+        printf("[AHT20] Read error\n");
+        return false;
+    }
+}
+
+// Helper: Print WiFi info
+static void print_wifi_info() {
+    esp_netif_ip_info_t ip_info;
+    esp_netif_t *netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+    EventBits_t bits = xEventGroupGetBits(s_wifi_event_group);
+    if ((bits & WIFI_CONNECTED_BIT) && netif && esp_netif_get_ip_info(netif, &ip_info) == ESP_OK) {
+        wifi_ap_record_t ap_info;
+        if (esp_wifi_sta_get_ap_info(&ap_info) == ESP_OK) {
+            printf("[WiFi] IP: %s | RSSI: %d dBm | Channel: %d\n",
+                   ip4addr_ntoa((const ip4_addr_t *)&ip_info.ip), ap_info.rssi, ap_info.primary);
+        } else {
+            printf("[WiFi] IP: %s\n", ip4addr_ntoa((const ip4_addr_t *)&ip_info.ip));
+        }
+    } else {
+        printf("[WiFi] No connection\n");
+    }
+}
+
+// Helper: Send sensor data as JSON
+static void send_sensor_json(float temperature, float humidity, uint8_t caqi, uint32_t tvoc, uint32_t eco2, const char *mac_id) {
+    char json_payload[128];
+    snprintf(json_payload, sizeof(json_payload),
+        "{\"temp\":%.2f,\"hum\":%.2f,\"caqi\":%u,\"tvoc\":%lu,\"eco2\":%lu,\"id\":\"%s\"}",
+        temperature, humidity, caqi, (unsigned long)tvoc, (unsigned long)eco2, mac_id);
+#if PROTOCOL_USE_TCP
+    tcp_send_sensor_data(json_payload);
+#else
+    udp_send_sensor_data(json_payload);
+#endif
+}
+
+// Main application entry point: initializes system, WiFi, LED, and starts sensor task
+void app_main() {
+    vTaskDelay(pdMS_TO_TICKS(500));
+    ESP_LOGI(TAG, "Starting app_main");
+    ESP_ERROR_CHECK(nvs_flash_init());
+    srand((unsigned)time(NULL));
+    wifi_init_sta();
+    led_strip_handle_t led_strip;
+    led_strip_config_t led_strip_config = {
+        .strip_gpio_num = NEOPIXEL_GPIO,
+        .max_leds = NUM_PIXELS,
+        .led_pixel_format = LED_PIXEL_FORMAT_GRB,
+        .led_model = LED_MODEL_WS2812,
+        .flags.invert_out = false,
+    };
+    led_strip_rmt_config_t led_rmt_config = {
+        .clk_src = RMT_CLK_SRC_DEFAULT,
+        .resolution_hz = 10 * 1000 * 1000,
+        .mem_block_symbols = 0,
+        .flags.with_dma = false,
+    };
+    if (led_strip_new_rmt_device(&led_strip_config, &led_rmt_config, &led_strip) == ESP_OK) {
+        ESP_LOGI(TAG, "LED strip initialized");
+        led_strip_clear(led_strip);
+        led_strip_refresh(led_strip);
+    } else {
+        ESP_LOGE(TAG, "LED strip initialization failed");
+    }
+    // --- Begin merged sensor logic ---
+    // I2C and sensor initialization
     i2c_master_bus_handle_t i2c_bus_handle = NULL;
     if (i2c_master_bus_init_ng(&i2c_bus_handle) != ESP_OK) {
         ESP_LOGE(TAG, "I2C bus init failed");
-        vTaskDelete(NULL);
+        return;
     }
     ESP_LOGI(TAG, "I2C bus initialized");
     ens160_config_t ens160_config = {
@@ -229,11 +312,6 @@ static void sensor_udp_task(void *pvParameters) {
         .irq_pin_polarity = ENS160_INT_PIN_POLARITY_ACTIVE_LO
     };
     ens160_handle_t ens160_handle = NULL;
-    if (ens160_init(i2c_bus_handle, &ens160_config, &ens160_handle) != ESP_OK) {
-        ESP_LOGE(TAG, "ENS160: Initialization failed");
-        vTaskDelete(NULL);
-    }
-    ESP_LOGI(TAG, "ENS160 sensor initialized");
     aht20_dev_handle_t aht20_handle = NULL;
     i2c_aht20_config_t aht20_config = {
         .i2c_config = {
@@ -242,12 +320,12 @@ static void sensor_udp_task(void *pvParameters) {
         },
         .i2c_timeout = 1000,
     };
-    if (aht20_new_sensor(i2c_bus_handle, &aht20_config, &aht20_handle) != ESP_OK) {
-        ESP_LOGE(TAG, "AHT20: Initialization failed");
-        vTaskDelete(NULL);
+    if (ens160_init(i2c_bus_handle, &ens160_config, &ens160_handle) != ESP_OK ||
+        aht20_new_sensor(i2c_bus_handle, &aht20_config, &aht20_handle) != ESP_OK) {
+        ESP_LOGE(TAG, "Sensor initialization failed");
+        return;
     }
-    ESP_LOGI(TAG, "AHT20 sensor initialized");
-    // Get MAC address (last 3 bytes for ID)
+    ESP_LOGI(TAG, "ENS160 and AHT20 sensors initialized");
     char mac_id[7];
 #if USE_VIRTUAL_MAC
     strncpy(mac_id, VIRTUAL_MAC_ID, sizeof(mac_id));
@@ -260,124 +338,25 @@ static void sensor_udp_task(void *pvParameters) {
     int print_wifi_info_counter = 0;
     float temperature = 0.0f, humidity = 0.0f;
     bool valid_aht20 = false, valid_ens160 = false;
-    for (;;) {
+    uint32_t last_send_time = xTaskGetTickCount();
+    while (1) {
         ens160_air_quality_data_t air_data;
         uint8_t caqi = 0;
-        // Try to get ENS160 data
-        if (ens160_get_measurement(ens160_handle, &air_data) == ESP_OK &&
-            air_data.uba_aqi > 0 && air_data.tvoc > 0 && air_data.eco2 > 0) {
-            ens160_aqi_uba_row_t aqi_def = ens160_aqi_index_to_definition(air_data.uba_aqi);
-            ESP_LOGI(TAG, "ENS160: CAQI: %d (%s), TVOC: %u ppb, eCO2: %u ppm", air_data.uba_aqi, aqi_def.rating, air_data.tvoc, air_data.eco2);
-            caqi = air_data.uba_aqi;
-            valid_ens160 = true;
-        } else {
-            ESP_LOGW(TAG, "ENS160: Read error or invalid data");
-            valid_ens160 = false;
-            caqi = 0;
-        }
-        uint8_t r = 0, g = 0, b = 0;
-        switch (caqi) {
-            case 1: r = 0; g = 255; b = 0; break;
-            case 2: r = 255; g = 255; b = 0; break;
-            case 3: r = 255; g = 165; b = 0; break;
-            case 4: r = 128; g = 0; b = 128; break;
-            case 5: r = 255; g = 0; b = 0; break;
-            default: r = 255; g = 255; b = 255; break;
-        }
-        // Scale color by LED_INTENSITY
-        r = (r * LED_INTENSITY) / 255;
-        g = (g * LED_INTENSITY) / 255;
-        b = (b * LED_INTENSITY) / 255;
-        led_strip_clear(strip);
-        led_strip_set_pixel(strip, 0, r, g, b);
-        led_strip_refresh(strip);
-        // Try to get AHT20 data
-        if (aht20_read_float(aht20_handle, &temperature, &humidity) == ESP_OK) {
-            ESP_LOGI(TAG, "AHT20: Temperature: %.2f C, Humidity: %.2f %%", temperature, humidity);
-            if (ens160_set_compensation_factors(ens160_handle, temperature, humidity) != ESP_OK) {
-                ESP_LOGW(TAG, "ENS160: Failed to set compensation factors");
-            }
-            valid_aht20 = true;
-        } else {
-            ESP_LOGW(TAG, "AHT20: Read error");
-            valid_aht20 = false;
-        }
-        /*
-        Send sensor data as a JSON-formatted UDP packet.
-        The packet includes:
-          - temp: Temperature in Celsius (float)
-          - hum: Relative humidity in percent (float)
-          - caqi: Air quality index (integer, 0 if unavailable)
-          - tvoc: Total Volatile Organic Compounds in ppb (integer)
-          - eco2: Equivalent CO2 in ppm (integer)
-          - id: Unique device identifier (last 3 bytes of MAC address, uppercase hex)
-        Example payload:
-          {"temp":23.45,"hum":56.78,"caqi":2,"tvoc":123,"eco2":456,"id":"AABBCC"}
-        This format is simple, compact, and easy to parse on the server side.
-        */
-        // Only send if both are valid and WiFi is connected
+        valid_ens160 = read_ens160(ens160_handle, &air_data, &caqi);
+        set_led_color(led_strip, caqi);
+        valid_aht20 = read_aht20(aht20_handle, &temperature, &humidity, ens160_handle);
         EventBits_t bits = xEventGroupGetBits(s_wifi_event_group);
-        if (valid_aht20 && valid_ens160 && (bits & WIFI_CONNECTED_BIT)) {
-            char udp_payload[128];
-            snprintf(udp_payload, sizeof(udp_payload),
-                "{\"temp\":%.2f,\"hum\":%.2f,\"caqi\":%u,\"tvoc\":%u,\"eco2\":%u,\"id\":\"%s\"}",
-                temperature, humidity, caqi, air_data.tvoc, air_data.eco2, mac_id);
-#if PROTOCOL_USE_TCP
-            tcp_send_sensor_data(udp_payload);
-#else
-            udp_send_sensor_data(udp_payload);
-#endif
-        } else if (valid_aht20 && valid_ens160) {
-            ESP_LOGI(TAG, "WiFi not connected, not sending data. Sensor values: temp=%.2f, hum=%.2f, caqi=%u, tvoc=%u, eco2=%u, id=%s", temperature, humidity, caqi, air_data.tvoc, air_data.eco2, mac_id);
-        }
-        // Print WiFi info every 10 seconds
-        if (++print_wifi_info_counter >= 5) { // 5*2s = 10s
-            esp_netif_ip_info_t ip_info;
-            esp_netif_t *netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
-            EventBits_t bits = xEventGroupGetBits(s_wifi_event_group);
-            if ((bits & WIFI_CONNECTED_BIT) && netif && esp_netif_get_ip_info(netif, &ip_info) == ESP_OK) {
-                wifi_ap_record_t ap_info;
-                if (esp_wifi_sta_get_ap_info(&ap_info) == ESP_OK) {
-                    ESP_LOGI(TAG, "WiFi: IP %s | RSSI %d dBm | Channel %d", ip4addr_ntoa((const ip4_addr_t *)&ip_info.ip), ap_info.rssi, ap_info.primary);
-                } else {
-                    ESP_LOGI(TAG, "WiFi: IP %s", ip4addr_ntoa((const ip4_addr_t *)&ip_info.ip));
-                }
-            } else {
-                ESP_LOGW(TAG, "No WiFi connection");
+        uint32_t now = xTaskGetTickCount();
+        if (now - last_send_time >= (SENSOR_SEND_INTERVAL_SEC * 1000 / portTICK_PERIOD_MS)) {
+            if (valid_aht20 && valid_ens160 && (bits & WIFI_CONNECTED_BIT)) {
+                send_sensor_json(temperature, humidity, caqi, air_data.tvoc, air_data.eco2, mac_id);
             }
-            print_wifi_info_counter = 0;
+            if (++print_wifi_info_counter >= 5) {
+                print_wifi_info();
+                print_wifi_info_counter = 0;
+            }
+            last_send_time = now;
         }
-        vTaskDelay(pdMS_TO_TICKS(SENSOR_SEND_INTERVAL_SEC * 1000));
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
-}
-
-// Main application entry point: initializes system, WiFi, LED, and starts sensor task
-void app_main() {
-    vTaskDelay(pdMS_TO_TICKS(500));
-    ESP_LOGI(TAG, "Starting app_main (UDP sensor sender)");
-    ESP_ERROR_CHECK(nvs_flash_init());
-    srand((unsigned)time(NULL));
-    wifi_init_sta();
-    led_strip_handle_t strip;
-    led_strip_config_t strip_config = {
-        .strip_gpio_num = NEOPIXEL_GPIO,
-        .max_leds = NUM_PIXELS,
-        .led_pixel_format = LED_PIXEL_FORMAT_GRB,
-        .led_model = LED_MODEL_WS2812,
-        .flags.invert_out = false,
-    };
-    led_strip_rmt_config_t rmt_config = {
-        .clk_src = RMT_CLK_SRC_DEFAULT,
-        .resolution_hz = 10 * 1000 * 1000,
-        .mem_block_symbols = 0,
-        .flags.with_dma = false,
-    };
-    if (led_strip_new_rmt_device(&strip_config, &rmt_config, &strip) == ESP_OK) {
-        ESP_LOGI(TAG, "LED strip initialized");
-        led_strip_clear(strip);
-        led_strip_refresh(strip);
-    } else {
-        ESP_LOGE(TAG, "LED strip initialization failed");
-    }
-    xTaskCreate(sensor_udp_task, "sensor_udp_task", 4096, (void*)strip, 5, NULL);
 }
