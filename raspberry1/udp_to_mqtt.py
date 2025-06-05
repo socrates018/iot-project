@@ -184,7 +184,8 @@ def check_mqtt_password(broker, port, username, password):
         if rc == 0:
             result[0] = True
         client.disconnect()
-    client = mqtt.Client()
+    # Use the modern Callback API version to avoid deprecation warning
+    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     client.username_pw_set(username, password)
     client.on_connect = on_connect
     try:
