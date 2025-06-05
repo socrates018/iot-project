@@ -83,9 +83,9 @@ def get_local_ip():
 # Set up MQTT client
 def setup_mqtt():
     try:
-        from paho.mqtt.client import MQTTv5
-        client = mqtt.Client(mqtt.MQTTv5, client_id=MQTT_CLIENT_ID)
-    except (ImportError, ValueError):
+        from paho.mqtt.client import MQTTv5, CallbackAPIVersion
+        client = mqtt.Client(CallbackAPIVersion.VERSION2, client_id=MQTT_CLIENT_ID)
+    except (ImportError, ValueError, AttributeError):
         try:
             client = mqtt.Client(client_id=MQTT_CLIENT_ID)
         except TypeError:
