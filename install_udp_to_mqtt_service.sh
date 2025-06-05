@@ -23,7 +23,7 @@ After=network.target
 [Service]
 Type=simple
 ExecStart=${PYTHON_PATH} ${SCRIPT_PATH}
-WorkingDirectory=$(dirname "$SCRIPT_PATH")
+WorkingDirectory=$(dirname "$(realpath "$0")")
 Restart=on-failure
 User=$(whoami)
 
