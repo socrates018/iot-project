@@ -73,6 +73,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
         printf("[WiFi] Disconnected, reconnecting...\n");
         esp_wifi_connect();
         xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
+        xEventGroupClearBits(s_wifi_event_group, WIFI_CONNECTED_BIT); // Clear connected bit on disconnect
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         printf("[WiFi] Got IP\n");
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
@@ -188,18 +189,36 @@ esp_err_t i2c_master_bus_init_ng(i2c_master_bus_handle_t *bus_handle) {
 // Helper: Set LED color based on CAQI value
 static void set_led_color(led_strip_handle_t strip, uint8_t caqi) {
     uint8_t r = 0, g = 0, b = 0;
+    uint8_t intensity = LED_INTENSITY;
     switch (caqi) {
-        case 1: r = 0; g = 255; b = 0; break;
-        case 2: r = 255; g = 255; b = 0; break;
-        case 3: r = 255; g = 165; b = 0; break;
-        case 4: r = 128; g = 0; b = 128; break;
-        case 5: r = 255; g = 0; b = 0; break;
-        default: r = 255; g = 255; b = 255; break;
+        case 0:
+            // CAQI 0: full red, max intensity
+            r = 255; g = 0; b = 0;
+            intensity = 255;
+            break;
+        case 1:
+            r = 0; g = 255; b = 0;
+            break;
+        case 2:
+            r = 255; g = 255; b = 0;
+            break;
+        case 3:
+            r = 255; g = 165; b = 0;
+            break;
+        case 4:
+            r = 128; g = 0; b = 128;
+            break;
+        case 5:
+            r = 255; g = 0; b = 0;
+            break;
+        default:
+            r = 255; g = 255; b = 255;
+            break;
     }
-    // Scale color by LED_INTENSITY
-    r = (r * LED_INTENSITY) / 255;
-    g = (g * LED_INTENSITY) / 255;
-    b = (b * LED_INTENSITY) / 255;
+    // Scale color by intensity
+    r = (r * intensity) / 255;
+    g = (g * intensity) / 255;
+    b = (b * intensity) / 255;
     led_strip_clear(strip);
     led_strip_set_pixel(strip, 0, r, g, b);
     led_strip_refresh(strip);
@@ -335,7 +354,6 @@ void app_main() {
     esp_read_mac(mac, ESP_MAC_WIFI_STA);
     snprintf(mac_id, sizeof(mac_id), "%02X%02X%02X", mac[3], mac[4], mac[5]);
 #endif
-    int print_wifi_info_counter = 0;
     float temperature = 0.0f, humidity = 0.0f;
     uint8_t caqi = 0;
     uint32_t last_send_time = xTaskGetTickCount();
@@ -345,14 +363,15 @@ void app_main() {
         bool valid_aht20 = read_aht20(aht20_handle, &temperature, &humidity, ens160_handle);
         EventBits_t bits = xEventGroupGetBits(s_wifi_event_group);
         uint32_t now = xTaskGetTickCount();
-        if ((bits & WIFI_CONNECTED_BIT) && valid_aht20 && valid_ens160) {
+        bool wifi_connected = (bits & WIFI_CONNECTED_BIT) != 0;
+        if (wifi_connected && valid_aht20 && valid_ens160) {
             set_led_color(led_strip, caqi);
             if (now - last_send_time >= (SENSOR_SEND_INTERVAL_SEC * 1000 / portTICK_PERIOD_MS)) {
                 send_sensor_json(temperature, humidity, caqi, air_data.tvoc, air_data.eco2, mac_id);
                 last_send_time = now;
             }
         } else {
-            set_led_color(led_strip, 5); // Red for error/alert
+            set_led_color(led_strip, 0); // Bright red for error/alert
         }
         static uint32_t last_wifi_print = 0;
         if (now - last_wifi_print >= (2 * SENSOR_SEND_INTERVAL_SEC * 1000 / portTICK_PERIOD_MS)) {
