@@ -7,6 +7,7 @@ VENVDIR="$(dirname "$(realpath "$0")")/venv"
 PYTHON_PATH="$VENVDIR/bin/python3"
 SCRIPT_PATH="$(dirname "$(realpath "$0")")/raspberry1/udp_to_mqtt.py"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
+PROJECT_ROOT="$(dirname "$(dirname "$(realpath "$0")")")"
 
 # Check if venv python exists
 if [ ! -x "$PYTHON_PATH" ]; then
@@ -23,7 +24,7 @@ After=network.target
 [Service]
 Type=simple
 ExecStart=${PYTHON_PATH} ${SCRIPT_PATH}
-WorkingDirectory=$(dirname "$(realpath "$0")")
+WorkingDirectory=${PROJECT_ROOT}
 Restart=on-failure
 User=$(whoami)
 
