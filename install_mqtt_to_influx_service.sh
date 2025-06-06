@@ -29,6 +29,7 @@ WorkingDirectory=${PROJECT_ROOT}
 Restart=on-failure
 RestartSec=10
 User=$(whoami)
+Environment=PYTHONUNBUFFERED=1
 
 [Install]
 WantedBy=multi-user.target
