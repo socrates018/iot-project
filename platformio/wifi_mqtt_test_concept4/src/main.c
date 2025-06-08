@@ -203,7 +203,7 @@ static void set_led_color(led_strip_handle_t strip, uint8_t caqi) {
             r = 255; g = 255; b = 0;
             break;
         case 3:
-            r = 255; g = 165; b = 0;
+            r = 255; g = 128; b = 0;
             break;
         case 4:
             r = 128; g = 0; b = 128;
