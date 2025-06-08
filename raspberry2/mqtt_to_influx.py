@@ -26,7 +26,7 @@ def check_mqtt_password(broker, port, username, password):
             result[0] = True
         client.disconnect()
 
-    client = mqtt.Client()
+    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     client.username_pw_set(username, password)
     client.on_connect = on_connect
     try:
@@ -105,7 +105,7 @@ def main():
         return
 
     topic = f"iot/{HOSTNAME}/#"
-    client_id = int(time.time() * 0.8)
+    client_id = f"client_{int(time.time() * 0.8)}"
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id)
     client.username_pw_set(HOSTNAME, MQTT_PASSWORD)
     client.reconnect_delay_set(min_delay=1, max_delay=5)
