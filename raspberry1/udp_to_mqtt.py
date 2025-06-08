@@ -24,18 +24,6 @@ Example MQTT message payload:
 This design is scalable (works for 4 or 100+ ESPs), efficient, and easy to integrate with data pipelines.
 """
 
-# --- Configuration Defines ---
-USE_TCP = False  # Set to True to listen for TCP instead of UDP
-UDP_PORT = 8080  # UDP/TCP port to listen on (must match ESP32 sender)
-MQTT_BROKER = "194.177.207.38"  # MQTT broker address
-MQTT_PORT = 1883  # MQTT broker port
-MQTT_CLIENT_ID = "team19_pi_gateway"  # MQTT client ID for this gateway
-MQTT_TOPIC_PREFIX = "iot/team19/"  # MQTT topic prefix (final topic is 'iot/team19')
-MQTT_USERNAME = "team19"  # MQTT username
-MQTT_RETRY_INTERVAL = 5    # Seconds between MQTT connection retry attempts
-MAX_RETRY_ATTEMPTS = 3     # Maximum number of MQTT connection retry attempts
-PUBLISH_INTERVAL = 2       # Seconds between MQTT publishes (batch interval)
-
 import socket
 import json
 import time
@@ -43,6 +31,19 @@ import os
 import threading
 import queue
 import paho.mqtt.client as mqtt
+
+# --- Configuration Defines ---
+USE_TCP = False  # Set to True to listen for TCP instead of UDP
+UDP_PORT = 8080  # UDP/TCP port to listen on (must match ESP32 sender)
+MQTT_BROKER = "194.177.207.38"  # MQTT broker address
+MQTT_PORT = 1883  # MQTT broker port
+MQTT_CLIENT_ID = 0.7*time.time()   # MQTT client ID for this gateway
+MQTT_TOPIC_PREFIX = "iot/team19/"  # MQTT topic prefix (final topic is 'iot/team19')
+MQTT_USERNAME = "team19"  # MQTT username
+MQTT_RETRY_INTERVAL = 5    # Seconds between MQTT connection retry attempts
+MAX_RETRY_ATTEMPTS = 3     # Maximum number of MQTT connection retry attempts
+PUBLISH_INTERVAL = 2       # Seconds between MQTT publishes (batch interval)
+
 
 # ---------- Load or prompt for password ----------
 ENV_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
