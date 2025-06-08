@@ -39,10 +39,6 @@ def check_mqtt_password(broker, port, username, password):
     return result[0]
 
 
-# Store latest values per device id
-latest_values = {}
-
-
 def load_mqtt_password():
     """
     Loads MQTT password from .env or prompts the user if not found.
@@ -74,22 +70,19 @@ def insert_data(db_name, user, password, device_id, measurement_type, value, tim
         data=line,
         auth=requests.auth.HTTPBasicAuth(user, password)
     )
-    print("Insert data:", response.ok, line)
+    if not response.ok:
+        print(f"Failed to insert data: {response.status_code} {response.text}")
+    else:
+        print("Insert data:", response.ok, line)
 
 
 def on_message(client, userdata, msg):
     try:
         print(f"Raw MQTT message: {msg.payload.decode()}")
+        device_id = msg.topic.rsplit('/', 1)[1]
         data = json.loads(msg.payload.decode())
-        device_id = data.get("id", "unknown")
-        if device_id not in latest_values:
-            latest_values[device_id] = {}
         for key in ["temp", "hum", "caqi", "tvoc", "eco2"]:
             if key in data and "timestamp" in data:
-                latest_values[device_id][key] = {
-                    "value": data[key],
-                    "timestamp": data["timestamp"]
-                }
                 insert_data(DB_NAME, HOSTNAME, MQTT_PASSWORD, device_id, key, data[key], data["timestamp"])
                 print(f"Saved value {data[key]} for {key} from device {device_id} at {data['timestamp']}")
     except Exception as e:
@@ -116,10 +109,11 @@ def main():
         client.subscribe(topic)
         print(f"Subscribing to {topic}. Waiting for messages...")
         client.loop_forever()
-    except Exception as e:
-        print(f"MQTT loop failed: {e}")
     except KeyboardInterrupt:
         print("Interrupted by user!")
+    except Exception as e:
+        print(f"MQTT loop failed: {e}")
+    finally:
         client.loop_stop()
         client.disconnect()
 

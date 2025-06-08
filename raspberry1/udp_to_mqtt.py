@@ -131,6 +131,7 @@ def main():
                 if not device_id:
                     print(f"[WARN] No 'id' in message: {json_data}")
                     continue
+                json_data.pop("id", None)
                 json_data["timestamp"] = int(time.time_ns())
                 topic = f"{MQTT_TOPIC_PREFIX.rstrip('/')}/{device_id}"
                 payload = json.dumps(json_data)
