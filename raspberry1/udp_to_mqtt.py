@@ -24,157 +24,38 @@ Example MQTT message payload:
 This design is scalable (works for 4 or 100+ ESPs), efficient, and easy to integrate with data pipelines.
 """
 
-import socket
-import json
-import time
 import os
-import threading
-import queue
+import time
+import json
+import socket
+import getpass
 import paho.mqtt.client as mqtt
 
-# --- Configuration Defines ---
-USE_TCP = False  # Set to True to listen for TCP instead of UDP
-UDP_PORT = 8080  # UDP/TCP port to listen on (must match ESP32 sender)
-MQTT_BROKER = "194.177.207.38"  # MQTT broker address
-MQTT_PORT = 1883  # MQTT broker port
-MQTT_CLIENT_ID = f"client_{int(time.time() * 0.9)}"   # MQTT client ID for this gateway
-MQTT_TOPIC_PREFIX = "iot/team19/"  # MQTT topic prefix (final topic is 'iot/team19')
-MQTT_USERNAME = "team19"  # MQTT username
-MQTT_RETRY_INTERVAL = 5    # Seconds between MQTT connection retry attempts
-MAX_RETRY_ATTEMPTS = 3     # Maximum number of MQTT connection retry attempts
-PUBLISH_INTERVAL = 2       # Seconds between MQTT publishes (batch interval)
+# Configuration
+UDP_PORT = 8080
+MQTT_BROKER = "194.177.207.38"
+MQTT_PORT = 1883
+MQTT_CLIENT_ID = "team19_pi_gateway"
+MQTT_TOPIC_PREFIX = "iot/team19/"
+MQTT_USERNAME = "team19"
+USE_TCP = False  # <-- Set this to True for TCP mode
 
 
-# ---------- Load or prompt for password ----------
-ENV_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
-MQTT_PASSWORD = None
-if os.path.exists(ENV_PATH):
-    with open(ENV_PATH, 'r') as f:
-        for line in f:
-            if line.startswith('MQTT_PASSWORD='):
-                MQTT_PASSWORD = line.strip().split('=', 1)[1]
-                break
-if not MQTT_PASSWORD:
-    import getpass
-    MQTT_PASSWORD = getpass.getpass("Enter MQTT password: ")
-    with open(ENV_PATH, 'w') as f:
-        f.write(f"MQTT_PASSWORD={MQTT_PASSWORD}\n")
+def load_mqtt_password():
+    env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
+    password = None
+    if os.path.exists(env_path):
+        with open(env_path, 'r') as f:
+            for line in f:
+                if line.startswith('MQTT_PASSWORD='):
+                    password = line.strip().split('=', 1)[1]
+                    break
+    if not password:
+        password = getpass.getpass("Enter MQTT password: ")
+        with open(env_path, 'w') as f:
+            f.write(f"MQTT_PASSWORD={password}\n")
+    return password
 
-print("[DEBUG] Current working directory:", os.getcwd())
-print("[DEBUG] ENV_PATH:", ENV_PATH)
-if os.path.exists(ENV_PATH):
-    with open(ENV_PATH) as f:
-        print("[DEBUG] .env contents:", f.read())
-else:
-    print("[DEBUG] .env file NOT FOUND at:", ENV_PATH)
-
-# Helper function to get the local WiFi IP address
-def get_local_ip():
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    try:
-        # Doesn't have to be reachable
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-    except Exception:
-        ip = "127.0.0.1"
-    finally:
-        s.close()
-    return ip
-
-# Set up MQTT client
-def setup_mqtt():
-    try:
-        from paho.mqtt.client import MQTTv5, CallbackAPIVersion
-        client = mqtt.Client(CallbackAPIVersion.VERSION2, client_id=MQTT_CLIENT_ID)
-    except (ImportError, ValueError, AttributeError):
-        try:
-            client = mqtt.Client(client_id=MQTT_CLIENT_ID)
-        except TypeError:
-            client = mqtt.Client()
-            client._client_id = MQTT_CLIENT_ID
-    client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
-    for attempt in range(MAX_RETRY_ATTEMPTS):
-        try:
-            client.connect(MQTT_BROKER, MQTT_PORT)
-            client.loop_start()
-            print(f"Connected to MQTT broker at {MQTT_BROKER}:{MQTT_PORT}")
-            return client
-        except Exception as e:
-            print(f"Attempt {attempt + 1}/{MAX_RETRY_ATTEMPTS}: Failed to connect to MQTT broker: {e}")
-            if attempt < MAX_RETRY_ATTEMPTS - 1:
-                print(f"Retrying in {MQTT_RETRY_INTERVAL} seconds...")
-                time.sleep(MQTT_RETRY_INTERVAL)
-            else:
-                print("Running in console-only mode (no MQTT)")
-                return None
-
-# Store latest reading from each ESP by id
-latest_readings = {}
-
-# Thread-safe queue for incoming UDP packets
-udp_queue = queue.Queue()
-
-# Worker thread for publishing to MQTT
-class MQTTPublishWorker(threading.Thread):
-    def __init__(self, mqtt_client, udp_queue):
-        super().__init__(daemon=True)
-        self.mqtt_client = mqtt_client
-        self.udp_queue = udp_queue
-
-    def run(self):
-        while True:
-            device_id, reading = self.udp_queue.get()
-            if self.mqtt_client:
-                topic = f"{MQTT_TOPIC_PREFIX.rstrip('/')}/{device_id}"
-                payload = json.dumps(reading)
-                self.mqtt_client.publish(topic, payload)
-                print(f"Published to {topic}: {payload}")
-            self.udp_queue.task_done()
-
-# UDP receive loop (threaded)
-def udp_receive_loop(sock, udp_queue):
-    while True:
-        data, addr = sock.recvfrom(1024)
-        print(f"[DEBUG] UDP packet received from {addr}: {data!r}")
-        try:
-            message = data.decode().strip()
-            json_data = json.loads(message)
-            device_id = json_data.get("id", None)
-            if device_id:
-                # Set timestamp to current unix time in nanoseconds
-                json_data["timestamp"] = int(time.time_ns())
-                latest_readings[device_id] = json_data
-                print(f"Updated reading for {device_id}: {json_data}")
-                udp_queue.put((device_id, json_data))
-            else:
-                print(f"No 'id' in message: {json_data}")
-        except json.JSONDecodeError:
-            print(f"Non-JSON message from {addr}: {message}")
-        except Exception as e:
-            print(f"Error processing message: {e}")
-
-# TCP receive loop (threaded, similar to UDP)
-def tcp_receive_loop(sock, udp_queue):
-    while True:
-        conn, addr = sock.accept()
-        with conn:
-            data = conn.recv(1024)
-            print(f"[DEBUG] TCP packet received from {addr}: {data!r}")
-            try:
-                message = data.decode().strip()
-                json_data = json.loads(message)
-                device_id = json_data.get("id", None)
-                if device_id:
-                    json_data["timestamp"] = int(time.time_ns())
-                    latest_readings[device_id] = json_data
-                    print(f"Updated reading for {device_id}: {json_data}")
-                    udp_queue.put((device_id, json_data))
-                else:
-                    print(f"No 'id' in message: {json_data}")
-            except json.JSONDecodeError:
-                print(f"Non-JSON message from {addr}: {message}")
-            except Exception as e:
-                print(f"Error processing message: {e}")
 
 def check_mqtt_password(broker, port, username, password):
     """
@@ -185,56 +66,88 @@ def check_mqtt_password(broker, port, username, password):
         if rc == 0:
             result[0] = True
         client.disconnect()
-    # Use the modern Callback API version to avoid deprecation warning
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     client.username_pw_set(username, password)
     client.on_connect = on_connect
     try:
         client.connect(broker, port, 60)
         client.loop_start()
-        import time
-        time.sleep(1)  # Wait for connect callback
+        time.sleep(1)
         client.loop_stop()
     except Exception:
         return False
     return result[0]
 
-def main():
-    global mqtt_client
-    # Check MQTT password before starting anything else
-    if not check_mqtt_password(MQTT_BROKER, MQTT_PORT, MQTT_USERNAME, MQTT_PASSWORD):
-        print("Wrong MQTT password. Exiting.")
-        import sys
-        sys.exit(1)
 
-    # Initialize socket and print info before anything else
-    UDP_IP = get_local_ip()  # Automatically detect local WiFi IP
-    proto = "TCP" if USE_TCP else "UDP"
-    print(f"[INFO] {proto} listener starting on {UDP_IP}:{UDP_PORT}...")
+def receive_packet(sock, use_tcp):
+    if use_tcp:
+        conn, addr = sock.accept()
+        with conn:
+            data = conn.recv(1024)
+        return data, addr
+    else:
+        data, addr = sock.recvfrom(1024)
+        return data, addr
+
+
+def setup_socket_and_mode():
+    """
+    Sets up and returns (sock, use_tcp) based on the USE_TCP variable.
+    Prints listener info. Handles both TCP and UDP.
+    """
     if USE_TCP:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.bind((UDP_IP, UDP_PORT))
-        sock.listen(5)
-        print(f"[INFO] TCP socket bound. Waiting for connections...")
-        # Start MQTT client in background
-        mqtt_client = setup_mqtt()
-        # Start MQTT publish worker thread
-        mqtt_worker = MQTTPublishWorker(mqtt_client, udp_queue)
-        mqtt_worker.start()
-        # Start TCP receive loop in main thread (blocking)
-        tcp_receive_loop(sock, udp_queue)
+        sock.bind(("", UDP_PORT))
+        sock.listen(1)
+        print(f"[INFO] TCP listener on 0.0.0.0:{UDP_PORT}, publishing to MQTT {MQTT_BROKER}:{MQTT_PORT}")
     else:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.bind((UDP_IP, UDP_PORT))
-        print(f"[INFO] UDP socket bound. Waiting for packets...")
-        # Start MQTT client in background
-        mqtt_client = setup_mqtt()
-        # Start MQTT publish worker thread
-        mqtt_worker = MQTTPublishWorker(mqtt_client, udp_queue)
-        mqtt_worker.start()
-        # Start UDP receive loop in main thread (blocking)
-        udp_receive_loop(sock, udp_queue)
+        sock.bind(("", UDP_PORT))
+        print(f"[INFO] UDP listener on 0.0.0.0:{UDP_PORT}, publishing to MQTT {MQTT_BROKER}:{MQTT_PORT}")
+    return sock, USE_TCP
+
+
+def main():
+    password = load_mqtt_password()
+    if not check_mqtt_password(MQTT_BROKER, MQTT_PORT, MQTT_USERNAME, password):
+        print("Wrong MQTT password. Exiting.")
+        return
+    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=MQTT_CLIENT_ID)
+    client.username_pw_set(MQTT_USERNAME, password)
+    client.reconnect_delay_set(min_delay=1, max_delay=5)
+    client.connect(MQTT_BROKER, MQTT_PORT)
+    client.loop_start()  # Let paho handle reconnects in background
+
+    sock, use_tcp = setup_socket_and_mode()
+
+    try:
+        while True:
+            data, addr = receive_packet(sock, use_tcp)
+            try:
+                message = data.decode().strip()
+                json_data = json.loads(message)
+                device_id = json_data.get("id", None)
+                if not device_id:
+                    print(f"[WARN] No 'id' in message: {json_data}")
+                    continue
+                json_data["timestamp"] = int(time.time_ns())
+                topic = f"{MQTT_TOPIC_PREFIX.rstrip('/')}/{device_id}"
+                payload = json.dumps(json_data)
+                result = client.publish(topic, payload)
+                if result.rc == mqtt.MQTT_ERR_SUCCESS:
+                    print(f"Published to {topic}: {payload}")
+                else:
+                    print(f"[ERROR] Failed to publish to {topic}: {payload}")
+                result.wait_for_publish()
+            except Exception as e:
+                print(f"[ERROR] Failed to process packet: {e}")
+    except KeyboardInterrupt:
+        print("Interrupted by user!")
+    finally:
+        client.loop_stop()
+        client.disconnect()
+        sock.close()
 
 if __name__ == "__main__":
     main()
