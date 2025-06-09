@@ -83,20 +83,28 @@ def setup_socket_and_mode():
         print(f"[INFO] UDP listener on 0.0.0.0:{UDP_PORT}, publishing to MQTT {MQTT_BROKER}:{MQTT_PORT}")
     return sock, USE_TCP
 
-
 def aggregate_mean(data_list):
+    """
+    Calculate the mean for each sensor key in SENSOR_KEYS from data_list.
+    For 'temp' and 'hum', return a float rounded to 2 decimals.
+    For others, return an int rounded to the nearest integer.
+    """
     means = {}
     for key in SENSOR_KEYS:
-        if key in ("temp", "hum"):
-            values = [float(entry[key]) for entry in data_list if key in entry and isinstance(entry[key], (int, float))]
-            if values:
-                means[key] = round(sum(values) / len(values), 2)
-        else:
-            values = [entry[key] for entry in data_list if key in entry and isinstance(entry[key], (int, float))]
-            if values:
-                means[key] = int(round(sum(values) / len(values)))
+        # Collect all numeric values for this key
+        numeric_values = []
+        for entry in data_list:
+            value = entry.get(key)
+            if isinstance(value, (int, float)):
+                numeric_values.append(float(value))
+        # Calculate the mean if we have values
+        if numeric_values:
+            mean = sum(numeric_values) / len(numeric_values)
+            if key in ("temp", "hum"):
+                means[key] = round(mean, 2)
+            else:
+                means[key] = int(round(mean))
     return means
-
 
 def main():
     password = load_mqtt_password()
