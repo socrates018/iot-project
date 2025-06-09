@@ -2,11 +2,25 @@
 # install_udp_to_mqtt_service.sh
 # Installs a systemd service to run udp_to_mqtt.py on startup using venv
 
-SERVICE_NAME="udp_to_mqtt"
+echo "Which UDP to MQTT script do you want to run as a service?"
+echo "1) udp_to_mqtt.py (per-device data)"
+echo "2) udp_to_mqtt_mean.py (mean aggregation)"
+read -p "Enter 1 or 2: " CHOICE
+
+if [ "$CHOICE" = "1" ]; then
+  SCRIPT_PATH="$(dirname "$(realpath "$0")")/raspberry1/udp_to_mqtt.py"
+  SERVICE_NAME="udp_to_mqtt"
+elif [ "$CHOICE" = "2" ]; then
+  SCRIPT_PATH="$(dirname "$(realpath "$0")")/raspberry1/udp_to_mqtt_mean.py"
+  SERVICE_NAME="udp_to_mqtt_mean"
+else
+  echo "Invalid input. Exiting."
+  exit 1
+fi
+
+SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 VENVDIR="$(dirname "$(realpath "$0")")/venv"
 PYTHON_PATH="$VENVDIR/bin/python3"
-SCRIPT_PATH="$(dirname "$(realpath "$0")")/raspberry1/udp_to_mqtt.py"
-SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 PROJECT_ROOT="$(dirname "$(dirname "$(realpath "$0")")")"
 
 # Check if venv python exists

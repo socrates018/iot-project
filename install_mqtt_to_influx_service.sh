@@ -2,11 +2,25 @@
 # install_mqtt_to_influx_service.sh
 # Installs a systemd service to run mqtt_to_influx.py on startup using venv
 
-SERVICE_NAME="mqtt_to_influx"
+echo "Which MQTT to Influx script do you want to run as a service?"
+echo "1) mqtt_to_influx.py (per-device data)"
+echo "2) mqtt_mean_to_influx.py (mean aggregation)"
+read -p "Enter 1 or 2: " CHOICE
+
+if [ "$CHOICE" = "1" ]; then
+  SCRIPT_PATH="$(dirname "$(realpath "$0")")/raspberry2/mqtt_to_influx.py"
+  SERVICE_NAME="mqtt_to_influx"
+elif [ "$CHOICE" = "2" ]; then
+  SCRIPT_PATH="$(dirname "$(realpath "$0")")/raspberry2/mqtt_mean_to_influx.py"
+  SERVICE_NAME="mqtt_mean_to_influx"
+else
+  echo "Invalid input. Exiting."
+  exit 1
+fi
+
+SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 VENVDIR="$(dirname "$(realpath "$0")")/venv"
 PYTHON_PATH="$VENVDIR/bin/python3"
-SCRIPT_PATH="$(dirname "$(realpath "$0")")/raspberry2/mqtt_to_influx.py"
-SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 PROJECT_ROOT="$(dirname "$(dirname "$(realpath "$0")")")"
 
 # Check if venv python exists
