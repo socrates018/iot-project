@@ -20,7 +20,7 @@ MQTT_CLIENT_ID = f"client_mean_{int(time.time() * 0.6)}"
 MQTT_TOPIC_PREFIX = "iot/team19/mean_value"
 MQTT_USERNAME = "team19"
 USE_TCP = False
-PUBLISH_INTERVAL = 20  # seconds
+PUBLISH_INTERVAL = 60  # seconds
 SENSOR_KEYS = ["temp", "hum", "caqi", "tvoc", "eco2"]
 
 
