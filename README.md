@@ -64,21 +64,74 @@ This repository implements an IoT system for environmental sensing and data coll
   3. Raspberry Pi 2 stores data in InfluxDB and visualizes with Grafana
 - **Security**: Using "team19" credentials for MQTT and database access with proper authentication.  
 
-## Concept 4: Mean Aggregation Pipeline
+## Concept 4: Full Data and Mean Aggregation Pipelines
 
-- **Mean Aggregation**: Raspberry Pi 1 can also aggregate all received sensor data over a configurable interval (e.g., 20 seconds) and publish the mean value for each measurement to its own MQTT topic (e.g., `iot/team19/mean_value/temp`).
-  - See `raspberry1/udp_to_mqtt_mean.py` for details.
-  - Raspberry Pi 2 subscribes to these mean value topics and writes them to InfluxDB using `mqtt_mean_to_influx.py`.
-  - Mean values for temperature and humidity are published as floats (2 decimal places), while CAQI, TVOC, and eCO2 are published as integers.
+This repository supports two main data pipelines for environmental sensing and collection:
+
+### 1. Full Data Pipeline
+- **ESP32 Sensor Nodes** (see `platformio/wifi_mqtt_test_concept4/`):
+  - Collect temperature, humidity, CAQI, TVOC, and eCO2 data using AHT20 and ENS160 sensors.
+  - Send JSON-formatted UDP packets every 10 seconds to Raspberry Pi 1.
+  - Example JSON: `{ "id": "AABBCC", "temp": 23.45, "hum": 56.78, "caqi": 2, "tvoc": 123, "eco2": 456 }`
+- **Raspberry Pi 1** (`raspberry1/udp_to_mqtt.py`):
+  - Receives UDP packets from all ESP32 nodes.
+  - Adds a timestamp and stores the latest reading for each device.
+  - Every 2 seconds, publishes a single MQTT message to `iot/team19` containing a JSON array of all latest readings.
+- **Raspberry Pi 2** (`raspberry2/mqtt_to_influx.py`):
+  - Subscribes to `iot/team19`.
+  - Parses each device's data and writes it to InfluxDB, using the device ID as the measurement name and sensor type as a tag.
+
+### 2. Mean Aggregation Pipeline
+- **Raspberry Pi 1** (`raspberry1/udp_to_mqtt_mean.py`):
+  - Aggregates all received UDP sensor data over a configurable interval (default: 20 seconds).
+  - Computes the mean for each measurement (temp, hum as float with 2 decimals, others as int).
+  - Publishes each mean value to its own MQTT topic (e.g., `iot/team19/mean_value/temp`).
+- **Raspberry Pi 2** (`raspberry2/mqtt_mean_to_influx.py`):
+  - Subscribes to all mean value topics (e.g., `iot/team19/mean_value/+`).
+  - Writes each mean value to InfluxDB as a measurement named `mean_value` with the sensor type as a tag.
+
+---
 
 ## ESP32 Firmware (Concept 4)
-
 - See `platformio/wifi_mqtt_test_concept4/` for the latest ESP32 firmware supporting UDP JSON transmission, device identification, and sensor integration.
+- The firmware is configurable for WiFi, UDP target, and sensor pins. See the folder's README for details.
 - Example JSON sent by ESP32:
   ```json
   {"id": "AABBCC", "temp": 23.45, "hum": 56.78, "caqi": 2, "tvoc": 123, "eco2": 456}
   ```
-- The ESP32 firmware is configurable for WiFi, UDP target, and sensor pins. See the folder's README for details.
+
+---
+
+## Example Data Flows
+
+### Full Data Example
+1. ESP32 sends UDP packet:
+   ```json
+   {"id": "AABBCC", "temp": 23.4, "hum": 56.7, "caqi": 2, "tvoc": 123, "eco2": 456}
+   ```
+2. `udp_to_mqtt.py` receives and stores the latest reading for each device.
+3. Every 2 seconds, publishes:
+   ```json
+   [
+     {"id": "AABBCC", "temp": 23.4, ...},
+     {"id": "DDEEFF", "temp": 24.1, ...},
+     ...
+   ]
+   ```
+   to MQTT topic `iot/team19`.
+4. `mqtt_to_influx.py` on Raspberry Pi 2 subscribes and writes each device's data to InfluxDB.
+
+### Mean Aggregation Example
+1. ESP32 sends UDP packet as above.
+2. `udp_to_mqtt_mean.py` aggregates values for each measurement from all received packets.
+3. Every 20 seconds, publishes:
+   - `iot/team19/mean_value/temp`: `23.45` (float, 2 decimals)
+   - `iot/team19/mean_value/hum`: `56.70` (float, 2 decimals)
+   - `iot/team19/mean_value/caqi`: `2` (int)
+   - ...
+4. `mqtt_mean_to_influx.py` subscribes to all mean value topics and writes each mean value to InfluxDB.
+
+---
 
 ## Folder Structure  
 - `platformio/` - ESP32 firmware projects (sensor, LED, WiFi/MQTT/UDP examples)  
