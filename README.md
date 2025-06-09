@@ -70,8 +70,8 @@ This repository supports two main data pipelines for environmental sensing and c
 
 ### 1. Full Data Pipeline
 - **ESP32 Sensor Nodes** (see `platformio/wifi_mqtt_test_concept4/`):
-  - Collect temperature, humidity, CAQI, TVOC, and eCO2 data using AHT20 and ENS160 sensors.
-  - Send JSON-formatted UDP packets every 10 seconds to Raspberry Pi 1.
+  - Collects temperature, humidity, CAQI, TVOC, and eCO2 data using AHT20 and ENS160 sensors.
+  - Sends JSON-formatted UDP packets every 10 seconds to Raspberry Pi 1.
   - Example JSON: `{ "id": "AABBCC", "temp": 23.45, "hum": 56.78, "caqi": 2, "tvoc": 123, "eco2": 456 }`
 - **Raspberry Pi 1** (`raspberry1/udp_to_mqtt.py`):
   - Receives UDP packets from all ESP32 nodes.
@@ -92,44 +92,35 @@ This repository supports two main data pipelines for environmental sensing and c
 
 ---
 
-## ESP32 Firmware (Concept 4)
-- See `platformio/wifi_mqtt_test_concept4/` for the latest ESP32 firmware supporting UDP JSON transmission, device identification, and sensor integration.
-- The firmware is configurable for WiFi, UDP target, and sensor pins. See the folder's README for details.
-- Example JSON sent by ESP32:
-  ```json
-  {"id": "AABBCC", "temp": 23.45, "hum": 56.78, "caqi": 2, "tvoc": 123, "eco2": 456}
-  ```
+## Main Python Scripts Overview
+
+### ESP32 Firmware (Concept 4)
+- `platformio/wifi_mqtt_test_concept4/` – ESP32 firmware for environmental sensing:
+  - Collects temperature, humidity, CAQI, TVOC, and eCO2 using AHT20 and ENS160 sensors.
+  - Sends JSON-formatted UDP packets every 10 seconds to Raspberry Pi 1.
+  - Example JSON: `{ "id": "AABBCC", "temp": 23.45, "hum": 56.78, "caqi": 2, "tvoc": 123, "eco2": 456 }`
+  - Configurable for WiFi, UDP target, and sensor pins.
+
+### Raspberry Pi 1 (raspberry1)
+- `udp_to_mqtt.py` – Receives UDP packets from all ESP32 nodes, adds a timestamp, and immediately publishes each device's data to its own MQTT topic (`iot/team19/<device_id>`). This script is designed for real-time, per-device MQTT publishing.
+- `udp_to_mqtt_mean.py` – Aggregates all received UDP sensor data over a configurable interval (default: 20 seconds), computes the mean for each measurement (temp, hum as float with 2 decimals, others as int), and publishes each mean value to its own MQTT topic (e.g., `iot/team19/mean_value/temp`).
+- `udp_sender_test.py` – Test script for sending UDP packets to the gateway.
+- `test_tcp.py` – TCP & UDP communication test script.
+
+### Raspberry Pi 2 (raspberry2)
+- `mqtt_to_influx.py` – Subscribes to all device topics (`iot/team19/<device_id>`), parses each device's data, and writes it to InfluxDB using the device ID as the measurement name and sensor type as a tag.
+- `mqtt_mean_to_influx.py` – Subscribes to all mean value topics (`iot/team19/mean_value/+`), writes each mean value to InfluxDB as a measurement named `mean_value` with the sensor type as a tag. Expects temp and hum as floats (2 decimals), others as integers.
+- `manage_db.py` – Utility for querying and managing the InfluxDB database.
+- `udp_receiver_test.py` – Test script for UDP communication.
 
 ---
 
-## Example Data Flows
-
-### Full Data Example
-1. ESP32 sends UDP packet:
-   ```json
-   {"id": "AABBCC", "temp": 23.4, "hum": 56.7, "caqi": 2, "tvoc": 123, "eco2": 456}
-   ```
-2. `udp_to_mqtt.py` receives and stores the latest reading for each device.
-3. Every 2 seconds, publishes:
-   ```json
-   [
-     {"id": "AABBCC", "temp": 23.4, ...},
-     {"id": "DDEEFF", "temp": 24.1, ...},
-     ...
-   ]
-   ```
-   to MQTT topic `iot/team19`.
-4. `mqtt_to_influx.py` on Raspberry Pi 2 subscribes and writes each device's data to InfluxDB.
-
-### Mean Aggregation Example
-1. ESP32 sends UDP packet as above.
-2. `udp_to_mqtt_mean.py` aggregates values for each measurement from all received packets.
-3. Every 20 seconds, publishes:
-   - `iot/team19/mean_value/temp`: `23.45` (float, 2 decimals)
-   - `iot/team19/mean_value/hum`: `56.70` (float, 2 decimals)
-   - `iot/team19/mean_value/caqi`: `2` (int)
-   - ...
-4. `mqtt_mean_to_influx.py` subscribes to all mean value topics and writes each mean value to InfluxDB.
+## Data Intervals and Topics
+- **ESP32 → Raspberry Pi 1:** UDP packets sent every 10 seconds.
+- **Raspberry Pi 1 → MQTT Broker:**
+  - `udp_to_mqtt.py`: Publishes each device's data as soon as received.
+  - `udp_to_mqtt_mean.py`: Publishes mean values for each measurement every 20 seconds (default, configurable).
+- **Raspberry Pi 2 → InfluxDB:** Data is written as soon as MQTT messages are received.
 
 ---
 
@@ -158,6 +149,22 @@ The repository includes several shell scripts to help with common tasks:
   - Optionally runs a specified Python script with the proper environment
 
 - `git-clone-replace.sh` - Utility for replacing the current repository with a fresh clone (useful for resolving Git conflicts)
+
+- `install_udp_to_mqtt_service.sh` – Installs a systemd service to run `raspberry1/udp_to_mqtt.py` on startup using the Python virtual environment. This ensures the UDP-to-MQTT gateway starts automatically after boot. The script:
+  - Checks for the venv Python interpreter
+  - Creates a systemd service file for `udp_to_mqtt.py`
+  - Enables and starts the service
+  - Usage: `sudo bash install_udp_to_mqtt_service.sh`
+  - Check status: `sudo systemctl status udp_to_mqtt`
+  - View logs: `sudo journalctl -u udp_to_mqtt -f`
+
+- `install_mqtt_to_influx_service.sh` – Installs a systemd service to run `raspberry2/mqtt_to_influx.py` on startup using the Python virtual environment. This ensures the MQTT-to-InfluxDB bridge starts automatically after boot. The script:
+  - Checks for the venv Python interpreter
+  - Creates a systemd service file for `mqtt_to_influx.py`
+  - Enables and starts the service
+  - Usage: `sudo bash install_mqtt_to_influx_service.sh`
+  - Check status: `sudo systemctl status mqtt_to_influx`
+  - View logs: `sudo journalctl -u mqtt_to_influx -f`
 
 ## Getting Started  
 1. **ESP32 Nodes**: Flash the appropriate firmware from `platformio/` to your ESP32-C3 Super Mini boards. Connect AHT20 and ENS160 sensors as described in the project documentation.  
