@@ -20,7 +20,7 @@ MQTT_CLIENT_ID = f"client_mean_{int(time.time() * 0.6)}"
 MQTT_TOPIC_PREFIX = "iot/team19/mean_value"
 MQTT_USERNAME = "team19"
 USE_TCP = False
-PUBLISH_INTERVAL = 60  # seconds
+PUBLISH_INTERVAL = 20  # seconds
 SENSOR_KEYS = ["temp", "hum", "caqi", "tvoc", "eco2"]
 
 
@@ -90,7 +90,7 @@ def aggregate_mean(data_list):
         if key in ("temp", "hum"):
             values = [float(entry[key]) for entry in data_list if key in entry and isinstance(entry[key], (int, float))]
             if values:
-                means[key] = sum(values) / len(values)
+                means[key] = round(sum(values) / len(values), 2)
         else:
             values = [entry[key] for entry in data_list if key in entry and isinstance(entry[key], (int, float))]
             if values:
