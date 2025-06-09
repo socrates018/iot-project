@@ -64,6 +64,22 @@ This repository implements an IoT system for environmental sensing and data coll
   3. Raspberry Pi 2 stores data in InfluxDB and visualizes with Grafana
 - **Security**: Using "team19" credentials for MQTT and database access with proper authentication.  
 
+## Concept 4: Mean Aggregation Pipeline
+
+- **Mean Aggregation**: Raspberry Pi 1 can also aggregate all received sensor data over a configurable interval (e.g., 20 seconds) and publish the mean value for each measurement to its own MQTT topic (e.g., `iot/team19/mean_value/temp`).
+  - See `raspberry1/udp_to_mqtt_mean.py` for details.
+  - Raspberry Pi 2 subscribes to these mean value topics and writes them to InfluxDB using `mqtt_mean_to_influx.py`.
+  - Mean values for temperature and humidity are published as floats (2 decimal places), while CAQI, TVOC, and eCO2 are published as integers.
+
+## ESP32 Firmware (Concept 4)
+
+- See `platformio/wifi_mqtt_test_concept4/` for the latest ESP32 firmware supporting UDP JSON transmission, device identification, and sensor integration.
+- Example JSON sent by ESP32:
+  ```json
+  {"id": "AABBCC", "temp": 23.45, "hum": 56.78, "caqi": 2, "tvoc": 123, "eco2": 456}
+  ```
+- The ESP32 firmware is configurable for WiFi, UDP target, and sensor pins. See the folder's README for details.
+
 ## Folder Structure  
 - `platformio/` - ESP32 firmware projects (sensor, LED, WiFi/MQTT/UDP examples)  
 - `raspberry1/` - Gateway scripts for UDP-to-MQTT publishing, DDNS setup, and class MQTT examples  

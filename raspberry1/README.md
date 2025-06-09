@@ -7,6 +7,7 @@ This directory contains Python scripts for the central gateway that collects sen
 - `test-mqtt-publish/` - MQTT publish example for testing
 - `udp_sender_test.py` - Test script for sending UDP packets
 - `test_tcp.py` - TCP & UDP communication test script
+- `udp_to_mqtt_mean.py` - Aggregates all received UDP sensor data (from all ESP32s) over a configurable interval, computes the mean for each measurement (temp, hum as float with 2 decimals, others as int), and publishes each mean value to its own MQTT topic (e.g., `iot/team19/mean_value/temp`).
 
 # UDP to MQTT Gateway for ESP32 Sensor Nodes
 
@@ -41,6 +42,19 @@ This approach is scalable, efficient, and integrated with our InfluxDB and Grafa
 ### config.json
 - **Purpose:** (If present) Can be used to store configuration parameters for the gateway or other scripts. Not used by default in `udp_to_mqtt.py`.
 
+### udp_to_mqtt_mean.py
+- **Purpose:** Receives UDP packets from ESP32 sensor nodes, aggregates the sensor data over a configurable interval, computes the mean for each measurement, and publishes each mean value to its own MQTT topic.
+- **How it works:**
+  - Listens on UDP port 8080 (configurable).
+  - Expects each UDP packet to be a JSON string with an `id` field and sensor values (`temp`, `hum`, `caqi`, `tvoc`, `eco2`).
+  - Aggregates values for each measurement from all received packets.
+  - Every 20 seconds (configurable), publishes the mean value of each measurement to its respective MQTT topic (e.g., `iot/team19/mean_value/temp`).
+- **Configuration:** All settings (UDP port, MQTT broker, topic, publish interval, etc.) are at the top of the script.
+- **Usage:**
+  ```sh
+  python3 udp_to_mqtt_mean.py
+  ```
+  You will be prompted for the MQTT password.
 
 ---
 
@@ -64,9 +78,25 @@ This approach is scalable, efficient, and integrated with our InfluxDB and Grafa
 
 ---
 
+## Data Flow Example (Mean Aggregation)
+
+1. **ESP32** sends UDP packet:
+   ```json
+   {"id": "AABBCC", "temp": 23.4, "hum": 56.7, "caqi": 2, "tvoc": 123, "eco2": 456}
+   ```
+2. **udp_to_mqtt_mean.py** receives packets from all devices, aggregates values for each measurement, and every 20 seconds publishes:
+   - `iot/team19/mean_value/temp`: `23.45` (float, 2 decimals)
+   - `iot/team19/mean_value/hum`: `56.70` (float, 2 decimals)
+   - `iot/team19/mean_value/caqi`: `2` (int)
+   - ...
+
+---
+
 ## Integration with InfluxDB
 
 See the `raspberry2/` directory for scripts like `mqtt_to_influx.py`, which subscribe to the MQTT topic and write sensor data to our InfluxDB database for storage and visualization with our Grafana installation.
+
+See also `mqtt_mean_to_influx.py`, which subscribes to the mean value MQTT topics and writes each mean value to InfluxDB for storage and visualization.
 
 ---
 

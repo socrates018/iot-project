@@ -17,6 +17,27 @@ The provided timestamp is used as the time.
 - `webserver/` - Web server utilities for data visualization:
   - `grafana/` - Configuration files for Grafana dashboards and data sources
   - `UI` - Simple test file for UI development
+- `mqtt_mean_to_influx.py` - Subscribes to the MQTT topics where mean values are published by `udp_to_mqtt_mean.py` (e.g., `iot/team19/mean_value/temp`), and writes each mean value to InfluxDB. This script expects temp and hum as floats (2 decimals), and caqi, tvoc, eco2 as integers. Each value is stored as a separate measurement in InfluxDB, with the measurement name `mean_value` and the sensor type as a tag.
+
+---
+
+## Usage (Mean Value Pipeline)
+1. Start the mean UDP to MQTT aggregator on Raspberry Pi 1:
+   ```sh
+   python3 ../raspberry1/udp_to_mqtt_mean.py
+   ```
+2. Start the mean MQTT to InfluxDB bridge on Raspberry Pi 2:
+   ```sh
+   python mqtt_mean_to_influx.py
+   ```
+   This will subscribe to all mean value topics and save incoming mean values to InfluxDB.
+
+---
+
+## Data Format (Mean Value)
+- MQTT topics: `iot/team19/mean_value/<key>` (e.g., `temp`, `hum`, `caqi`, ...)
+- Payload: mean value as float (for temp, hum) or int (for others)
+- InfluxDB: measurement name `mean_value`, tag `type=<key>`, field `value=<mean>`
 
 ## Requirements
 - Python 3.x
