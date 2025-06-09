@@ -87,9 +87,14 @@ def setup_socket_and_mode():
 def aggregate_mean(data_list):
     means = {}
     for key in SENSOR_KEYS:
-        values = [entry[key] for entry in data_list if key in entry and isinstance(entry[key], (int, float))]
-        if values:
-            means[key] = sum(values) / len(values)
+        if key in ("temp", "hum"):
+            values = [float(entry[key]) for entry in data_list if key in entry and isinstance(entry[key], (int, float))]
+            if values:
+                means[key] = sum(values) / len(values)
+        else:
+            values = [entry[key] for entry in data_list if key in entry and isinstance(entry[key], (int, float))]
+            if values:
+                means[key] = int(round(sum(values) / len(values)))
     return means
 
 
