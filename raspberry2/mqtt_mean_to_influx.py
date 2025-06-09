@@ -1,6 +1,5 @@
 import os
 import time
-import json
 import requests
 import paho.mqtt.client as mqtt
 import getpass
@@ -13,38 +12,11 @@ MQTT_BROKER = PUBLIC_IP
 MQTT_PORT = 1883
 HOSTNAME = "team19"
 DB_NAME = "team19_db"
-MQTT_CLIENT_ID = f"client_{int(time.time() * 0.8)}"
-
-
-def check_mqtt_password(broker, port, username, password):
-    """
-    Returns True if MQTT credentials are correct (can connect), False otherwise.
-    """
-    result = [False]
-
-    def on_connect(client, userdata, flags, rc, properties=None):
-        if rc == 0:
-            result[0] = True
-        client.disconnect()
-
-    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
-    client.username_pw_set(username, password)
-    client.on_connect = on_connect
-    try:
-        client.connect(broker, port, 60)
-        client.loop_start()
-        time.sleep(1)
-        client.loop_stop()
-    except Exception:
-        return False
-    return result[0]
+MQTT_CLIENT_ID = f"client_mean_influx_{int(time.time() * 0.75)}"
+SENSOR_KEYS = ["temp", "hum", "caqi", "tvoc", "eco2"]
 
 
 def load_mqtt_password():
-    """
-    Loads MQTT password from .env or prompts the user if not found.
-    Returns the password as a string.
-    """
     env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
     password = None
     if os.path.exists(env_path):
@@ -60,11 +32,29 @@ def load_mqtt_password():
     return password
 
 
-def insert_data(db_name, user, password, device_id, measurement_type, value, timestamp):
-    """
-    Insert a data point into InfluxDB using line protocol.
-    """
-    line = f"{device_id},type={measurement_type} value={value} {timestamp}"
+def check_mqtt_password(broker, port, username, password):
+    result = [False]
+    def on_connect(client, userdata, flags, rc, properties=None):
+        if rc == 0:
+            result[0] = True
+        client.disconnect()
+    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+    client.username_pw_set(username, password)
+    client.on_connect = on_connect
+    try:
+        client.connect(broker, port, 60)
+        client.loop_start()
+        time.sleep(1)
+        client.loop_stop()
+    except Exception:
+        return False
+    return result[0]
+
+
+def insert_data(db_name, user, password, measurement_type, value, timestamp=None):
+    line = f"mean_value,type={measurement_type} value={value}"
+    if timestamp:
+        line += f" {timestamp}"
     response = requests.post(
         f"{INFLUXDB_URL}/write",
         params={"db": db_name},
@@ -79,25 +69,25 @@ def insert_data(db_name, user, password, device_id, measurement_type, value, tim
 
 def on_message(client, userdata, msg):
     try:
-        print(f"Raw MQTT message: {msg.payload.decode()}")
-        device_id = msg.topic.rsplit('/', 1)[1]
-        data = json.loads(msg.payload.decode())
-        for key in ["temp", "hum", "caqi", "tvoc", "eco2"]:
-            if key in data and "timestamp" in data:
-                insert_data(DB_NAME, HOSTNAME, MQTT_PASSWORD, device_id, key, data[key], data["timestamp"])
+        print(f"Raw MQTT message: {msg.topic} {msg.payload.decode()}")
+        # Topic: iot/team19/mean_value/<key>
+        parts = msg.topic.split('/')
+        if len(parts) >= 4 and parts[2] == "mean_value":
+            measurement_type = parts[3]
+            value = float(msg.payload.decode())
+            insert_data(DB_NAME, HOSTNAME, MQTT_PASSWORD, measurement_type, value)
     except Exception as e:
         print("Error processing message:", e)
 
 
 def main():
-    # Check MQTT password before starting MQTT loop
     global MQTT_PASSWORD
     MQTT_PASSWORD = load_mqtt_password()
     if not check_mqtt_password(MQTT_BROKER, MQTT_PORT, HOSTNAME, MQTT_PASSWORD):
         print("Wrong MQTT password. Exiting.")
         return
 
-    topic = f"iot/{HOSTNAME}/#"
+    topic = f"iot/{HOSTNAME}/mean_value/+"
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=MQTT_CLIENT_ID)
     client.username_pw_set(HOSTNAME, MQTT_PASSWORD)
     client.reconnect_delay_set(min_delay=1, max_delay=5)
@@ -106,7 +96,7 @@ def main():
     try:
         client.connect(MQTT_BROKER, MQTT_PORT)
         client.subscribe(topic)
-        print(f"Subscribing to {topic}. Waiting for messages...")
+        print(f"Subscribing to {topic}. Waiting for mean value messages...")
         client.loop_forever()
     except KeyboardInterrupt:
         print("Interrupted by user!")
@@ -115,7 +105,6 @@ def main():
     finally:
         client.loop_stop()
         client.disconnect()
-
 
 if __name__ == "__main__":
     main()

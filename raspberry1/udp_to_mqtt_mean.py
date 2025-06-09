@@ -1,27 +1,8 @@
 #!/usr/bin/env python3
 """
-UDP to MQTT Gateway for ESP32 Sensor Nodes
+UDP to MQTT Gateway with Aggregation (Mean Value)
 
-This script acts as a gateway between multiple ESP32 sensor nodes (sending UDP packets)
-and an MQTT broker. It is designed to run on a Raspberry Pi or similar Linux system.
-
-How it works:
-- The script listens for UDP packets on a specified port (default: 8080).
-- Each ESP32 sensor node sends its sensor data as a JSON string via UDP. The JSON must include a unique 'id' field (e.g., last 3 bytes of MAC address) and all sensor values (e.g., temp, hum, caqi, tvoc, eco2, timestamp).
-- When a UDP packet is received, the script decodes the JSON and stores the latest reading for each ESP32 node in a dictionary, keyed by 'id'.
-- Every PUBLISH_INTERVAL seconds, the script publishes a single MQTT message to the topic MQTT_TOPIC (e.g., 'iot/team19'). This message is a JSON array containing the most recent reading from each ESP32 node.
-- This approach ensures that the MQTT broker receives only one organized message per interval, containing all current sensor values from all nodes, reducing message flooding and making downstream processing (e.g., InfluxDB, Grafana) much easier.
-
-Configuration is done via defines at the top of the script. You can adjust the UDP port, MQTT broker address, topic, publish interval, and other parameters as needed.
-
-Example MQTT message payload:
-[
-  {"id": "AABBCC", "temp": 23.4, "hum": 56.7, ...},
-  {"id": "DDEEFF", "temp": 24.1, "hum": 55.1, ...},
-  ...
-]
-
-This design is scalable (works for 4 or 100+ ESPs), efficient, and easy to integrate with data pipelines.
+Listens for UDP packets from ESP32 sensor nodes, aggregates (mean) all values for each measurement across all devices, and publishes each mean value to its own MQTT topic (e.g., iot/team19/mean_value/temp).
 """
 
 import os
@@ -35,10 +16,12 @@ import paho.mqtt.client as mqtt
 UDP_PORT = 8080
 MQTT_BROKER = "194.177.207.38"
 MQTT_PORT = 1883
-MQTT_CLIENT_ID = f"client_{int(time.time() * 0.9)}"
-MQTT_TOPIC_PREFIX = "iot/team19/"
+MQTT_CLIENT_ID = f"client_mean_{int(time.time() * 0.6)}"
+MQTT_TOPIC_PREFIX = "iot/team19/mean_value"
 MQTT_USERNAME = "team19"
-USE_TCP = False  # <-- Set this to True for TCP mode
+USE_TCP = False
+PUBLISH_INTERVAL = 60  # seconds
+SENSOR_KEYS = ["temp", "hum", "caqi", "tvoc", "eco2"]
 
 
 def load_mqtt_password():
@@ -58,9 +41,6 @@ def load_mqtt_password():
 
 
 def check_mqtt_password(broker, port, username, password):
-    """
-    Returns True if MQTT credentials are correct (can connect), False otherwise.
-    """
     result = [False]
     def on_connect(client, userdata, flags, rc, properties=None):
         if rc == 0:
@@ -91,10 +71,6 @@ def receive_packet(sock, use_tcp):
 
 
 def setup_socket_and_mode():
-    """
-    Sets up and returns (sock, use_tcp) based on the USE_TCP variable.
-    Prints listener info. Handles both TCP and UDP.
-    """
     if USE_TCP:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -108,6 +84,15 @@ def setup_socket_and_mode():
     return sock, USE_TCP
 
 
+def aggregate_mean(data_list):
+    means = {}
+    for key in SENSOR_KEYS:
+        values = [entry[key] for entry in data_list if key in entry and isinstance(entry[key], (int, float))]
+        if values:
+            means[key] = sum(values) / len(values)
+    return means
+
+
 def main():
     password = load_mqtt_password()
     if not check_mqtt_password(MQTT_BROKER, MQTT_PORT, MQTT_USERNAME, password):
@@ -117,32 +102,39 @@ def main():
     client.username_pw_set(MQTT_USERNAME, password)
     client.reconnect_delay_set(min_delay=1, max_delay=5)
     client.connect(MQTT_BROKER, MQTT_PORT)
-    client.loop_start()  # Let paho handle reconnects in background
+    client.loop_start()
 
     sock, use_tcp = setup_socket_and_mode()
+    received_data = []
+    last_publish = time.time()
 
     try:
         while True:
-            data, addr = receive_packet(sock, use_tcp)
+            sock.settimeout(1)
             try:
+                data, addr = receive_packet(sock, use_tcp)
                 message = data.decode().strip()
                 json_data = json.loads(message)
-                device_id = json_data.get("id", None)
-                if not device_id:
-                    print(f"[WARN] No 'id' in message: {json_data}")
-                    continue
                 json_data.pop("id", None)
-                json_data["timestamp"] = int(time.time_ns())
-                topic = f"{MQTT_TOPIC_PREFIX.rstrip('/')}/{device_id}"
-                payload = json.dumps(json_data)
-                result = client.publish(topic, payload)
-                if result.rc == mqtt.MQTT_ERR_SUCCESS:
-                    print(f"Published to {topic}: {payload}")
-                else:
-                    print(f"[ERROR] Failed to publish to {topic}: {payload}")
-                result.wait_for_publish()
+                received_data.append(json_data)
+            except socket.timeout:
+                pass
             except Exception as e:
                 print(f"[ERROR] Failed to process packet: {e}")
+            now = time.time()
+            if now - last_publish >= PUBLISH_INTERVAL:
+                mean_data = aggregate_mean(received_data)
+                for key, value in mean_data.items():
+                    topic = f"{MQTT_TOPIC_PREFIX}/{key}"
+                    payload = str(value)
+                    result = client.publish(topic, payload)
+                    if result.rc == mqtt.MQTT_ERR_SUCCESS:
+                        print(f"Published mean {key} to {topic}: {payload}")
+                    else:
+                        print(f"[ERROR] Failed to publish mean {key} to {topic}: {payload}")
+                    result.wait_for_publish()
+                received_data.clear()
+                last_publish = now
     except KeyboardInterrupt:
         print("Interrupted by user!")
     finally:
