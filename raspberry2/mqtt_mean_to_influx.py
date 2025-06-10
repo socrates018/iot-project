@@ -14,6 +14,7 @@ HOSTNAME = "team19"
 DB_NAME = "team19_db"
 MQTT_CLIENT_ID = f"client_mean_influx_{int(time.time() * 0.75)}"
 SENSOR_KEYS = ["temp", "hum", "caqi", "tvoc", "eco2"]
+MEAN_TOPIC = f"iot/{HOSTNAME}/mean_value/+"
 
 
 def load_mqtt_password():
@@ -75,30 +76,41 @@ def insert_data(db_name, user, password, measurement_type, value, timestamp=None
 
 def on_message(client, userdata, msg):
     try:
-        print(f"Raw MQTT message: {msg.topic} {msg.payload.decode()}")
-        # Topic: iot/team19/mean_value/<key>
-        parts = msg.topic.split('/')
+        topic = msg.topic
+        payload = msg.payload.decode(errors="replace")
+        print(f"[MQTT] Received message on topic: {topic} | payload: {payload}")
+        parts = topic.split('/')
         if len(parts) >= 4 and parts[2] == "mean_value":
             measurement_type = parts[3]
-            raw_value = msg.payload.decode()
-            if measurement_type in ("temp", "hum"):
-                value = float(raw_value)
-            else:
-                value = int(raw_value)
+            raw_value = payload
+            try:
+                if measurement_type in ("temp", "hum"):
+                    value = float(raw_value)
+                else:
+                    value = int(raw_value)
+            except ValueError:
+                print(f"[WARN] Could not parse value '{raw_value}' for type '{measurement_type}'. Skipping.")
+                return
+            print(f"[INFO] Parsed mean value: {measurement_type} = {value}")
             insert_data(DB_NAME, HOSTNAME, MQTT_PASSWORD, measurement_type, value)
+        else:
+            print(f"[WARN] Ignored message with unexpected topic structure: {topic}")
     except Exception as e:
-        print("Error processing message:", e)
+        print(f"[ERROR] Exception in on_message: {e}")
 
 
 def on_connect(client, userdata, flags, rc, properties=None):
     if rc == 0:
-        print("[INFO] Connected to MQTT broker.")
+        print(f"[INFO] Connected to MQTT broker at {MQTT_BROKER}:{MQTT_PORT} as {HOSTNAME}.")
     else:
         print(f"[ERROR] Failed to connect to MQTT broker, rc={rc}")
 
 
 def on_disconnect(client, userdata, rc):
-    print(f"[WARN] Disconnected from MQTT broker (rc={rc})")
+    if rc == 0:
+        print(f"[INFO] Cleanly disconnected from MQTT broker.")
+    else:
+        print(f"[WARN] Unexpected disconnect from MQTT broker (rc={rc})")
 
 
 def main():
@@ -108,7 +120,6 @@ def main():
         print("Wrong MQTT password. Exiting.")
         return
 
-    topic = f"iot/{HOSTNAME}/mean_value/+"
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=MQTT_CLIENT_ID)
     client.username_pw_set(HOSTNAME, MQTT_PASSWORD)
     client.reconnect_delay_set(min_delay=1, max_delay=5)
@@ -119,8 +130,8 @@ def main():
 
     try:
         client.connect(MQTT_BROKER, MQTT_PORT)
-        client.subscribe(topic)
-        print(f"Subscribing to {topic}. Waiting for mean value messages...")
+        client.subscribe(MEAN_TOPIC)
+        print(f"Subscribing to {MEAN_TOPIC}. Waiting for mean value messages...")
         client.loop_forever()
     except KeyboardInterrupt:
         print("Interrupted by user!")
