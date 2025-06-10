@@ -52,19 +52,25 @@ def check_mqtt_password(broker, port, username, password):
 
 
 def insert_data(db_name, user, password, measurement_type, value, timestamp=None):
-    line = f"mean_value,type={measurement_type} value={value}"
-    if timestamp:
-        line += f" {timestamp}"
-    response = requests.post(
-        f"{INFLUXDB_URL}/write",
-        params={"db": db_name},
-        data=line,
-        auth=requests.auth.HTTPBasicAuth(user, password)
-    )
-    if not response.ok:
-        print(f"Failed to insert data: {response.status_code} {response.text}")
-    else:
-        print("Insert data:", response.ok, line)
+    try:
+        line = f"mean_value,type={measurement_type} value={value}"
+        if timestamp:
+            line += f" {timestamp}"
+        response = requests.post(
+            f"{INFLUXDB_URL}/write",
+            params={"db": db_name},
+            data=line,
+            auth=requests.auth.HTTPBasicAuth(user, password),
+            timeout=5
+        )
+        if not response.ok:
+            print(f"Failed to insert data: {response.status_code} {response.text}")
+        else:
+            print("Insert data:", response.ok, line)
+    except requests.exceptions.Timeout:
+        print("[ERROR] InfluxDB request timed out for line:", line)
+    except Exception as e:
+        print(f"[ERROR] Exception during insert_data: {e}")
 
 
 def on_message(client, userdata, msg):
@@ -80,6 +86,17 @@ def on_message(client, userdata, msg):
         print("Error processing message:", e)
 
 
+def on_connect(client, userdata, flags, rc, properties=None):
+    if rc == 0:
+        print("[INFO] Connected to MQTT broker.")
+    else:
+        print(f"[ERROR] Failed to connect to MQTT broker, rc={rc}")
+
+
+def on_disconnect(client, userdata, rc):
+    print(f"[WARN] Disconnected from MQTT broker (rc={rc})")
+
+
 def main():
     global MQTT_PASSWORD
     MQTT_PASSWORD = load_mqtt_password()
@@ -92,6 +109,9 @@ def main():
     client.username_pw_set(HOSTNAME, MQTT_PASSWORD)
     client.reconnect_delay_set(min_delay=1, max_delay=5)
     client.on_message = on_message
+    client.on_connect = on_connect
+    client.on_disconnect = on_disconnect
+    client.enable_logger()
 
     try:
         client.connect(MQTT_BROKER, MQTT_PORT)
@@ -103,8 +123,11 @@ def main():
     except Exception as e:
         print(f"MQTT loop failed: {e}")
     finally:
-        client.loop_stop()
-        client.disconnect()
+        try:
+            client.loop_stop()
+            client.disconnect()
+        except Exception as e:
+            print(f"[ERROR] Exception during cleanup: {e}")
 
 if __name__ == "__main__":
     main()
