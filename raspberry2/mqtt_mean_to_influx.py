@@ -91,7 +91,6 @@ def on_message(client, userdata, msg):
             except ValueError:
                 print(f"[WARN] Could not parse value '{raw_value}' for type '{measurement_type}'. Skipping.")
                 return
-            print(f"[INFO] Parsed mean value: {measurement_type} = {value}")
             insert_data(DB_NAME, HOSTNAME, MQTT_PASSWORD, measurement_type, value)
         else:
             print(f"[WARN] Ignored message with unexpected topic structure: {topic}")
