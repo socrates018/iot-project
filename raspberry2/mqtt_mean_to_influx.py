@@ -80,7 +80,11 @@ def on_message(client, userdata, msg):
         parts = msg.topic.split('/')
         if len(parts) >= 4 and parts[2] == "mean_value":
             measurement_type = parts[3]
-            value = float(msg.payload.decode())
+            raw_value = msg.payload.decode()
+            if measurement_type in ("temp", "hum"):
+                value = float(raw_value)
+            else:
+                value = int(raw_value)
             insert_data(DB_NAME, HOSTNAME, MQTT_PASSWORD, measurement_type, value)
     except Exception as e:
         print("Error processing message:", e)
