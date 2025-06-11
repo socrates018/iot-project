@@ -95,6 +95,14 @@ For this system to function correctly and allow remote access, port forwarding w
 
 ---
 
+## Live Data Visualization
+
+You can view the real-time environmental data and dashboards using our public Grafana instance:
+
+[Grafana Visualization Dashboard](http://localhost:3000/public-dashboards/e0ee925f54a64bd8b3042d138fa0b159)
+
+---
+
 ## Folder Structure
 - `concepts/` - Project concept images (such as architecture diagrams for Concept 3 and Concept 4) to help visualize the system design and evolution.
 - `platformio/` - ESP32 firmware projects (sensor, LED, WiFi/MQTT/UDP examples).
