@@ -1,21 +1,27 @@
-# IoT Project: Concept 4 Architecture
+# IoT Project: Environmental Sensing and Data Collection System
 
-### Concept 3 (Initial Design)
-- ESP32 sensor nodes collect environmental data and send it directly to a central server or broker.
-- Centralized approach, but less scalable for distributed, real-world deployments where each node is in a different home.
+**University Course Project – Internet of Things  & Applications**
 
-### Concept 4 (Final Design)
-- Multiple ESP32 sensor nodes all send data to a single central Raspberry Pi gateway (Raspberry Pi 1).
-- Sensor data is sent via UDP from ESP32 nodes to the Raspberry Pi 1 gateway.
-- Raspberry Pi 1 acts as a central gateway, collecting data from all ESP32 nodes and publishing consolidated data to a remote MQTT broker.
-- A second Raspberry Pi (Raspberry Pi 2) subscribes to the MQTT broker, writes data to a remote database, and hosts a web server for visualization.
-- This centralized gateway approach is efficient for collecting data from multiple sensor nodes while reducing the complexity of having multiple gateways.
+This repository contains the final project for a university course on IoT Systems. The project demonstrates the design and implementation of a scalable, real-time environmental monitoring system using modern IoT technologies. It covers the full stack from embedded firmware to cloud-based data visualization.
 
-**Why Concept 4?**
-- Concept 4 was chosen because it provides a centralized collection point (Raspberry Pi 1) for all ESP32 sensor data, with the gateway handling connectivity and security to the MQTT broker. This approach simplifies the architecture while still being scalable and secure for monitoring multiple sensor locations.
+**Project Team:**
+- Team No.19
+- Course: Internet of Things & Applications
+- Instructor: Choumas Kostas
+- Semester: 8th 
 
-This repository implements an IoT system for environmental sensing and data collection, based on Concept 4. The system collects environmental measurements from ESP32 nodes every 10 seconds and sends them via UDP to a central Raspberry Pi 1 gateway. The gateway adds timestamps to the data and forwards it to a remote MQTT broker every 10 seconds in batched updates. The architecture includes 4 ESP32-C3 Super Mini boards with environmental sensors, a Raspberry Pi acting as the gateway and aggregator, a webserver Raspberry Pi, a remote MQTT broker, and an InfluxDB database server.
+---
 
+This robust, scalable IoT system enables real-time environmental monitoring across multiple locations. The architecture is designed to efficiently collect, aggregate, and visualize sensor data from distributed ESP32 nodes, using a two-stage Raspberry Pi gateway and webserver approach. The system leverages UDP, MQTT, InfluxDB, and Grafana to provide reliable data flow and insightful visualization.
+
+**Project Highlights:**
+- ESP32-C3 Super Mini boards with environmental sensors (AHT20 and ENS160) deployed in various locations.
+- Sensor data is transmitted via UDP to a central Raspberry Pi gateway (Raspberry Pi 1), which aggregates and forwards the data to a remote MQTT broker.
+- A second Raspberry Pi (Raspberry Pi 2) subscribes to the MQTT broker, stores the data in an InfluxDB database, and hosts a Grafana web dashboard for visualization.
+
+This system is based on a centralized gateway concept (concept 4), where all sensor nodes communicate with a single gateway, simplifying network management and enhancing scalability. The design ensures secure, reliable, and efficient monitoring for smart home or distributed sensor applications.
+
+---
 
 ## System Overview
 
@@ -55,14 +61,7 @@ This repository implements an IoT system for environmental sensing and data coll
   3. Raspberry Pi 2 stores data in InfluxDB and visualizes with Grafana.
 - **Security**: Using "team19" credentials for MQTT and database access with proper authentication.
 
-## Concept 4: Full Data and Mean Aggregation Pipelines
-
-This repository supports two main data pipelines for environmental sensing and collection:
-
-
----
-
-## Main Python Scripts Overview
+## Main Python Scripts Overview:
 
 ### ESP32 Firmware (Concept 4)
 - `/platformio/wifi_mqtt_test_concept4/src/main.c` – ESP32 firmware for environmental sensing:
@@ -97,11 +96,11 @@ For this system to function correctly and allow remote access, port forwarding w
 ---
 
 ## Folder Structure
+- `concepts/` - Project concept images (such as architecture diagrams for Concept 3 and Concept 4) to help visualize the system design and evolution.
 - `platformio/` - ESP32 firmware projects (sensor, LED, WiFi/MQTT/UDP examples).
 - `raspberry1/` - Gateway scripts for UDP-to-MQTT publishing.
 - `raspberry2/` - Scripts for MQTT subscription, database writing, and web server hosting and visualization.
 - `pymakr/` - MicroPython test projects for ESP32 (legacy).
-- `concepts/` - Project concept images and documentation.
 
 ## Helper Scripts
 The repository includes several shell scripts to help with common tasks:
