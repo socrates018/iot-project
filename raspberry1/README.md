@@ -9,6 +9,7 @@ This directory contains Python scripts for the central gateway that collects sen
 - `udp_sender_test.py` - Test script for sending UDP packets
 - `test_tcp.py` - TCP & UDP communication test script
 - `test-mqtt-concept3/` - Script based on concept 3 that subscribes to an MQTT topic and inserts the data to the influx DB (legacy).
+
 # UDP to MQTT Gateway for ESP32 Sensor Nodes
 
 This directory contains scripts and configurations for bridging sensor data from multiple ESP32 devices (sent via UDP) to an MQTT broker, and onward to an InfluxDB database for storage. The setup is designed for use on a Raspberry Pi or similar Linux system.
