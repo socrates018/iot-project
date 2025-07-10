@@ -2,7 +2,7 @@
 
 **University Course Project – Internet of Things  & Applications**
 
-This repository contains the final project for a university course on IoT Systems. The project demonstrates the design and implementation of a scalable, real-time environmental monitoring system using modern IoT technologies. It covers the full stack from embedded firmware to cloud-based data visualization.
+This repository contains the final project for a university course on IoT Systems. The project demonstrates the design and implementation of a scalable, real-time environmental monitoring system using modern IoT technologies.
 
 **Project Team:**
 - Team No.19
@@ -57,9 +57,9 @@ This system is based on a centralized gateway concept (concept 4), where all sen
 - **Data Collection**: The ESP32 nodes collect temperature, humidity, air quality (CAQI), TVOC, and eCO2 measurements.
 - **Data Flow**:
   1. ESP32 nodes send data to Raspberry Pi 1 via UDP.
-  2. Raspberry Pi 1 adds timestamps and forwards to MQTT broker every 2 seconds.
+  2. Raspberry Pi 1 adds timestamps and forwards to MQTT broker every 10 seconds.
   3. Raspberry Pi 2 stores data in InfluxDB and visualizes with Grafana.
-- **Security**: Using "team19" credentials for MQTT and database access with proper authentication.
+- **Security**: Using given credentials for MQTT and database access with proper authentication.
 
 ## Main Python Scripts Overview:
 
